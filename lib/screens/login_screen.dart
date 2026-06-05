@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../api/api.dart';
+import '../fcm_service.dart';
 import '../theme/theme.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -25,6 +28,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() { _busy = true; _err = null; });
     try {
       await VendorApi.instance.login(_id.text.trim(), _pw.text.trim());
+      unawaited(FcmService.instance.register());
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/home');
     } on VendorApiException catch (e) {

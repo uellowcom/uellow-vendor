@@ -81,6 +81,17 @@ class VendorApi {
   }
 
   // Auth
+
+  /// FCM push token → backend (mirrored onto the vendor's partner so the
+  /// fleet push engine can target it). No-op when not logged in.
+  Future<void> registerPushToken(String deviceId, String token) async {
+    if (_token == null || _token!.isEmpty) return;
+    try {
+      await _post('/api/vendor/v1/me/push-token',
+          {'push_token': token, 'device_id': deviceId});
+    } catch (_) {}
+  }
+
   Future<Vendor> login(String identifier, String password) async {
     final j = _need(await _post('/api/vendor/v1/auth/login', {
       'login': identifier, 'password': password,

@@ -242,6 +242,52 @@ class VendorApi {
     final j = _need(await _get('/api/vendor/v1/app/languages'));
     return ((j['data'] as List).cast<Map>()).map((m) => m.cast<String, dynamic>()).toList();
   }
+
+  // ── Capabilities (what this vendor may do) ──
+  Future<Map<String, dynamic>> capabilities() async {
+    final j = _need(await _get('/api/vendor/v1/capabilities'));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+
+  List<Map<String, dynamic>> _dataList(Map<String, dynamic> j) =>
+      ((j['data'] as List?) ?? const []).cast<Map>()
+          .map((m) => m.cast<String, dynamic>()).toList();
+
+  // ── Flash sales ──
+  Future<List<Map<String, dynamic>>> flashSales() async =>
+      _dataList(_need(await _get('/api/vendor/v1/flash-sales')));
+  Future<void> flashCreate(Map<String, dynamic> body) async =>
+      _need(await _post('/api/vendor/v1/flash-sales', body));
+  Future<void> flashEnd(int id) async =>
+      _need(await _post('/api/vendor/v1/flash-sales/$id/end'));
+
+  // ── Promotions ──
+  Future<Map<String, dynamic>> promotions() async {
+    final j = _need(await _get('/api/vendor/v1/promotions'));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+  Future<void> promotionJoin(int promotionId, List<Map<String, dynamic>> items) async =>
+      _need(await _post('/api/vendor/v1/promotions/join',
+          {'promotion_id': promotionId, 'items': items}));
+
+  // ── Stock ──
+  Future<List<Map<String, dynamic>>> stock({String filter = 'all'}) async =>
+      _dataList(_need(await _get('/api/vendor/v1/stock', query: {'filter': filter})));
+
+  // ── Restock requests ──
+  Future<List<Map<String, dynamic>>> restockList() async =>
+      _dataList(_need(await _get('/api/vendor/v1/restock')));
+  Future<void> restockCreate(int productId, int qty, String notes) async =>
+      _need(await _post('/api/vendor/v1/restock',
+          {'product_id': productId, 'qty': qty, 'notes': notes}));
+
+  // ── Store style ──
+  Future<Map<String, dynamic>> styleGet() async {
+    final j = _need(await _get('/api/vendor/v1/style'));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+  Future<void> styleSave(Map<String, dynamic> body) async =>
+      _need(await _post('/api/vendor/v1/style', body));
 }
 
 class VendorApiException implements Exception {

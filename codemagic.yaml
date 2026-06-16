@@ -63,8 +63,11 @@ workflows:
         - appstore                          # holds CERTIFICATE_PRIVATE_KEY (Base64)
       vars:
         BUNDLE_ID: "com.uellow.vendors"     # same identifier registered on Apple
-        APP_APPLE_ID: ""                    # ⬅️ put the numeric Apple ID here after creating the app
         IOS_VERSION: "1.0.0"                # iOS marketing version (independent from Android)
+        # APP_APPLE_ID is NOT set here (an empty value fails Codemagic validation).
+        # After you create the app in App Store Connect, add APP_APPLE_ID (the numeric
+        # Apple ID) as a SECURE variable in the 'appstore' group in the Codemagic UI.
+        # Until then the build still works — get-latest-build-number just falls back to 1.
     scripts:
       - name: Flutter packages get
         script: |

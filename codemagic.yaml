@@ -40,8 +40,75 @@ workflows:
       - build/app/outputs/flutter-apk/*.apk
       - build/app/outputs/bundle/release/*.aab
 
-  # ───────────────────────── iOS (needs Apple setup) ─────────────────────────
-  # An iOS build for this app needs its OWN Apple App ID + distribution
-  # certificate/profile (like the main app). After creating the App ID on
-  # developer.apple.com and linking an App Store Connect API key in Codemagic,
-  # add an `ios-release` workflow mirroring uellow_app/codemagic.yaml.
+  # ───────────────────────── iOS — App Store ─────────────────────────
+  # PREREQUISITES (one-time, on Apple side):
+  #   1) developer.apple.com → Identifiers → register App ID  com.uellow.vendors
+  #   2) App Store Connect → Apps → New App (bundle com.uellow.vendors) → copy the
+  #      numeric Apple ID into APP_APPLE_ID below.
+  #   3) Codemagic: the 'appstore' variable group (CERTIFICATE_PRIVATE_KEY, Base64)
+  #      and the 'uellow_appstore' App Store Connect integration must be available
+  #      to this app (same ones the main app uses; the API key role = Admin/App Manager).
+  #   4) Add ios/Runner/GoogleService-Info.plist (Firebase iOS) or the app crashes at launch.
+  ios-appstore:
+    name: Vendor — iOS App Store
+    instance_type: mac_mini_m2
+    max_build_duration: 90
+    integrations:
+      app_store_connect: uellow_appstore
+    environment:
+      flutter: 3.29.3
+      xcode: latest
+      cocoapods: default
+      groups:
+        - appstore                          # holds CERTIFICATE_PRIVATE_KEY (Base64)
+      vars:
+        BUNDLE_ID: "com.uellow.vendors"     # same identifier registered on Apple
+        APP_APPLE_ID: ""                    # ⬅️ put the numeric Apple ID here after creating the app
+        IOS_VERSION: "1.0.0"                # iOS marketing version (independent from Android)
+    scripts:
+      - name: Flutter packages get
+        script: |
+          flutter pub get
+      - name: Install CocoaPods
+        script: |
+          cd ios && pod install --repo-update
+      - name: Set up code signing (create cert + profile if missing)
+        script: |
+          set -e
+          if [ -z "$CERTIFICATE_PRIVATE_KEY" ]; then
+            echo "❌ CERTIFICATE_PRIVATE_KEY is empty — add it to the 'appstore' group (Secure)."
+            exit 1
+          fi
+          keychain initialize
+          echo "$CERTIFICATE_PRIVATE_KEY" | base64 --decode > /tmp/cm_cert_key.pem 2>/dev/null || true
+          if ! grep -q "BEGIN RSA PRIVATE KEY\|BEGIN PRIVATE KEY" /tmp/cm_cert_key.pem 2>/dev/null; then
+            echo "❌ Decoded key is not a valid PEM — paste the full Base64 (one line)."
+            exit 1
+          fi
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE --platform IOS \
+            --certificate-key=@file:/tmp/cm_cert_key.pem --create --verbose
+          keychain add-certificates
+          xcode-project use-profiles --verbose
+          if ! security find-identity -v -p codesigning | grep -qiE "Apple (Distribution|Development)|iPhone (Distribution|Developer)"; then
+            echo "❌ No signing identity in keychain after fetch-signing-files (check API key role / cert limit)."
+            exit 1
+          fi
+          echo "✅ Signing identity ready."
+      - name: Build signed IPA
+        script: |
+          LATEST=$(app-store-connect get-latest-build-number "$APP_APPLE_ID" 2>/dev/null || echo "")
+          if [ -n "$LATEST" ]; then BUILD=$((LATEST + 1)); else BUILD="1"; fi
+          echo "Building iOS $IOS_VERSION (build $BUILD)"
+          flutter build ipa --release \
+            --build-name="$IOS_VERSION" \
+            --build-number="$BUILD" \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false

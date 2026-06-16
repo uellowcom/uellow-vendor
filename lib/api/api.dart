@@ -103,6 +103,11 @@ class VendorApi {
     await _persist();
     return _vendor!;
   }
+  /// Public vendor-account request (no auth). Submits the application form.
+  Future<void> applyVendor(Map<String, String> data) async {
+    _need(await _post('/api/vendor/v1/auth/apply', data));
+  }
+
   Future<void> logout() async {
     try { await _post('/api/vendor/v1/auth/logout'); } catch (_) {}
     _token = null; _vendor = null;

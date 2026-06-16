@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../api/api.dart';
 import '../fcm_service.dart';
 import '../theme/theme.dart';
+import 'vendor_signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -104,10 +105,21 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900)))),
               ])),
             const SizedBox(height: 18),
-            Center(child: Text(ar ? 'لا تملك حساب تاجر؟ تواصل مع فريق Uellow'
-                                  : 'No vendor account? Contact the Uellow team',
+            Center(child: Text(ar ? 'لا تملك حساب تاجر؟' : "Don't have a vendor account?",
               style: const TextStyle(color: UC.brownSoft, fontSize: 12,
                 fontWeight: FontWeight.w600))),
+            const SizedBox(height: 10),
+            SizedBox(width: double.infinity, child: OutlinedButton.icon(
+              onPressed: () => Navigator.push(context, MaterialPageRoute(
+                builder: (_) => const VendorSignupScreen())),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: UC.brown,
+                side: const BorderSide(color: UC.brown, width: 1.4),
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+              icon: const Icon(Icons.storefront_outlined, size: 18),
+              label: Text(ar ? 'طلب حساب تاجر' : 'Request a vendor account',
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900)))),
           ]),
         ))),
       )),

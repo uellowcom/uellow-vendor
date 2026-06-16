@@ -316,6 +316,42 @@
           ]
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:50540776966:android:fedc345f4f2230837fbd87",
+        "android_client_info": {
+          "package_name": "com.uellow.vendors"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "50540776966-tmgq3a2u5156o1iau83bh86tadrbkilu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDNK7_3PfdjF_KcPssb_fRo2YBLWmGZ5rU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "50540776966-tmgq3a2u5156o1iau83bh86tadrbkilu.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "50540776966-48kgig4ojqik90lmrc42uv0n7n9b06ar.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.uellow.app"
+              }
+            }
+          ]
+        }
+      }
     }
   ],
   "configuration_version": "1"

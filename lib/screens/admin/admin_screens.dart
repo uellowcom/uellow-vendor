@@ -234,7 +234,7 @@ class _AdminVendorsScreenState extends State<AdminVendorsScreen> {
               return ListTile(
                 title: Text('${v['display_name'] ?? ''}',
                   style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
-                subtitle: Text('${v['vendor_type']} · ${v['state']} · ${v['product_total']} ${ar ? "منتج" : "products"}',
+                subtitle: Text('${v['vendor_type']} · ${v['state']} · ${v['product_total']} ${ar ? "منتج" : "products"} · ⭐${v['score'] ?? 0}',
                   style: UT.small),
                 trailing: const Icon(Icons.tune, color: _admin),
                 onTap: () => Navigator.push(c, MaterialPageRoute(

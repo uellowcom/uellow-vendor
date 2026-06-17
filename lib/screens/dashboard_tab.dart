@@ -61,6 +61,24 @@ class _DashboardTabState extends State<DashboardTab> {
             child: Text(snap.error.toString(), style: UT.body, textAlign: TextAlign.center)));
           final d = snap.data!;
           return ListView(padding: EdgeInsets.zero, children: [
+            // Vendor Score banner
+            Container(margin: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(color: _scoreBg(d.scoreBand),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: _scoreFg(d.scoreBand).withValues(alpha: .3))),
+              child: Row(children: [
+                Icon(Icons.verified, color: _scoreFg(d.scoreBand), size: 22),
+                const SizedBox(width: 10),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(ar ? 'تقييم أداء المتجر' : 'Vendor score',
+                    style: const TextStyle(fontSize: 11, color: UC.muted, fontWeight: FontWeight.w700)),
+                  Text(_scoreLabel(d.scoreBand, ar),
+                    style: TextStyle(fontSize: 13, color: _scoreFg(d.scoreBand), fontWeight: FontWeight.w900)),
+                ])),
+                Text('${d.score}', style: TextStyle(fontSize: 26, color: _scoreFg(d.scoreBand), fontWeight: FontWeight.w900)),
+                Text(' /100', style: UT.small),
+              ])),
             // Hero gradient with revenue
             Container(margin: const EdgeInsets.fromLTRB(14, 12, 14, 0),
               padding: const EdgeInsets.all(18),
@@ -199,6 +217,16 @@ class _DashboardTabState extends State<DashboardTab> {
       ]),
       Text(l, style: const TextStyle(color: UC.muted, fontSize: 10, fontWeight: FontWeight.w700)),
     ])));
+
+  Color _scoreBg(String b) => {
+    'excellent': UC.successBg, 'good': UC.successBg,
+    'fair': UC.warnBg, 'at_risk': UC.dangerBg}[b] ?? UC.warnBg;
+  Color _scoreFg(String b) => {
+    'excellent': UC.successDk, 'good': UC.successDk,
+    'fair': const Color(0xFF92400E), 'at_risk': UC.dangerDk}[b] ?? const Color(0xFF92400E);
+  String _scoreLabel(String b, bool ar) => {
+    'excellent': ar ? 'ممتاز' : 'Excellent', 'good': ar ? 'جيد' : 'Good',
+    'fair': ar ? 'مقبول' : 'Fair', 'at_risk': ar ? 'يحتاج تحسين' : 'Needs work'}[b] ?? b;
 
   Widget _kpiTile(String l, String v) => Expanded(child: Container(
     padding: const EdgeInsets.all(10),

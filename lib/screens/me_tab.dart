@@ -89,6 +89,9 @@ class MeTab extends StatelessWidget {
         _row(context, Icons.bar_chart,
           ar ? 'التحليلات' : 'Analytics',
           ar ? 'المبيعات + أعلى المنتجات' : 'Sales + top products', '/analytics'),
+        _row(context, Icons.table_view_outlined,
+          ar ? 'التقارير' : 'Reports',
+          ar ? 'تصدير Excel للطلبات والمنتجات' : 'Excel exports', '/reports'),
         if (VendorApi.instance.isAdmin)
           _row(context, Icons.shield_outlined,
             ar ? '🛡️ وضع الأدمن' : '🛡️ Admin mode',

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../api/api.dart';
 import '../../theme/theme.dart';
+import '../reports_screen.dart' show downloadAndShare;
 
 const Color _admin = Color(0xFF2563EB);
 const Color _adminDk = Color(0xFF0F1F3A);
@@ -80,6 +81,20 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             _navTile(context, Icons.storefront, ar ? 'إدارة التُّجار' : 'Vendors', const AdminVendorsScreen()),
             _navTile(context, Icons.fact_check, ar ? 'طابور الاعتماد' : 'Approvals', const AdminApprovalsScreen(),
               badge: (app['products'] ?? 0) + (app['edits'] ?? 0)),
+            const SizedBox(height: 6),
+            Row(children: [
+              Expanded(child: OutlinedButton.icon(
+                onPressed: () => downloadAndShare(context,
+                  '/api/vendor/v1/admin/export/orders.xlsx', 'marketplace_orders.xlsx'),
+                icon: const Icon(Icons.table_view, size: 16),
+                label: Text(ar ? 'تصدير الطلبات' : 'Export orders'))),
+              const SizedBox(width: 6),
+              Expanded(child: OutlinedButton.icon(
+                onPressed: () => downloadAndShare(context,
+                  '/api/vendor/v1/admin/export/vendors.xlsx', 'vendors.xlsx'),
+                icon: const Icon(Icons.table_view, size: 16),
+                label: Text(ar ? 'تصدير التُّجار' : 'Export vendors'))),
+            ]),
             const SizedBox(height: 10),
             if (byType.isNotEmpty) ...[
               Text(ar ? 'المبيعات حسب نوع التاجر (الشهر)' : 'GMV by vendor type (month)', style: UT.h2),

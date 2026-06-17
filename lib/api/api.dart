@@ -397,6 +397,16 @@ class VendorApi {
   }
   Future<void> styleSave(Map<String, dynamic> body) async =>
       _need(await _post('/api/vendor/v1/style', body));
+
+  // ── Excel exports — returns raw xlsx bytes (caller saves/shares) ──
+  Future<Uint8List> exportBytes(String path) async {
+    final r = await http.get(Uri.parse('$baseUrl$path'), headers: _headers())
+        .timeout(const Duration(seconds: 60));
+    if (r.statusCode != 200) {
+      throw VendorApiException('Export failed (${r.statusCode})', code: 'EXPORT_FAILED');
+    }
+    return r.bodyBytes;
+  }
 }
 
 class VendorApiException implements Exception {

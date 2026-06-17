@@ -17,6 +17,7 @@ class VendorApi {
   String baseUrl = kVendorBase;
   String? _token;
   Vendor? _vendor;
+  String vendorType = 'seller'; // fbu | seller | dropshipper | hybrid | consignment
   final ValueNotifier<String> langNotifier = ValueNotifier<String>('en');
 
   String get token => _token ?? '';
@@ -101,6 +102,7 @@ class VendorApi {
     _token = d['token'] as String?;
     _vendor = Vendor.fromJson(d['vendor'] as Map<String, dynamic>);
     await _persist();
+    unawaited(capabilities());
     return _vendor!;
   }
   /// Public vendor-account request (no auth). Submits the application form.
@@ -139,6 +141,7 @@ class VendorApi {
     final j = _need(await _get('/api/vendor/v1/me'));
     _vendor = Vendor.fromJson(((j['data'] as Map)['vendor'] as Map).cast<String, dynamic>());
     await _persist();
+    unawaited(capabilities());
     return _vendor!;
   }
   Future<Vendor> updateProfile(Map<String, dynamic> body) async {
@@ -276,7 +279,10 @@ class VendorApi {
   // ── Capabilities (what this vendor may do) ──
   Future<Map<String, dynamic>> capabilities() async {
     final j = _need(await _get('/api/vendor/v1/capabilities'));
-    return (j['data'] as Map).cast<String, dynamic>();
+    final d = (j['data'] as Map).cast<String, dynamic>();
+    final vt = d['vendor_type'];
+    if (vt is String && vt.isNotEmpty) vendorType = vt;
+    return d;
   }
 
   List<Map<String, dynamic>> _dataList(Map<String, dynamic> j) =>
@@ -570,11 +576,12 @@ class ProductSummary {
   final String approvalState, rejectionReason;
   final String? imageUrl;
   final bool active;
+  final bool underReview;
   const ProductSummary({required this.id, required this.name,
       required this.listPrice, required this.standardPrice,
       required this.isPublished, required this.qty, required this.salesCount,
       required this.approvalState, required this.rejectionReason, this.imageUrl,
-      this.active = true});
+      this.active = true, this.underReview = false});
   factory ProductSummary.fromJson(Map<String, dynamic> j) => ProductSummary(
     id: (j['id'] ?? 0) as int,
     name: BL.fromJson(j['name']),
@@ -587,6 +594,7 @@ class ProductSummary {
     rejectionReason: (j['rejection_reason'] ?? '').toString(),
     imageUrl: j['image_url'] as String?,
     active: (j['active'] ?? true) as bool,
+    underReview: (j['under_review'] ?? false) as bool,
   );
 }
 
@@ -594,21 +602,22 @@ class ProductDetail extends ProductSummary {
   final String descriptionSale, description, sku, barcode;
   final double weight;
   final List<Map<String, dynamic>> variants;
+  final String pendingChange;
   const ProductDetail({required super.id, required super.name,
       required super.listPrice, required super.standardPrice,
       required super.isPublished, required super.qty, required super.salesCount,
       required super.approvalState, required super.rejectionReason, super.imageUrl,
-      super.active,
+      super.active, super.underReview,
       required this.descriptionSale, required this.description,
       required this.sku, required this.barcode, required this.weight,
-      required this.variants});
+      required this.variants, this.pendingChange = ''});
   factory ProductDetail.fromJson(Map<String, dynamic> j) {
     final b = ProductSummary.fromJson(j);
     return ProductDetail(
       id: b.id, name: b.name, listPrice: b.listPrice, standardPrice: b.standardPrice,
       isPublished: b.isPublished, qty: b.qty, salesCount: b.salesCount,
       approvalState: b.approvalState, rejectionReason: b.rejectionReason, imageUrl: b.imageUrl,
-      active: b.active,
+      active: b.active, underReview: b.underReview,
       descriptionSale: (j['description_sale'] ?? '').toString(),
       description: (j['description'] ?? '').toString(),
       sku: (j['default_code'] ?? '').toString(),
@@ -616,6 +625,7 @@ class ProductDetail extends ProductSummary {
       weight: ((j['weight'] ?? 0) as num).toDouble(),
       variants: ((j['variant_ids'] as List?) ?? const [])
         .map((e) => (e as Map).cast<String, dynamic>()).toList(),
+      pendingChange: (j['pending_change'] ?? '').toString(),
     );
   }
 }

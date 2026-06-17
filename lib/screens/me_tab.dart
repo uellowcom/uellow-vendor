@@ -48,6 +48,9 @@ class MeTab extends StatelessWidget {
               const SizedBox(width: 6),
               UPill(text: (v?.tier ?? '').toUpperCase(),
                 bg: UC.yellowFaint, fg: UC.brown),
+              const SizedBox(width: 6),
+              UPill(text: _vendorTypeLabel(VendorApi.instance.vendorType, ar),
+                bg: UC.brown, fg: UC.yellow),
             ]),
           ])),
         const SizedBox(height: 14),
@@ -99,6 +102,16 @@ class MeTab extends StatelessWidget {
         const SizedBox(height: 24),
       ]),
     );
+  }
+
+  String _vendorTypeLabel(String t, bool ar) {
+    switch (t) {
+      case 'fbu': return ar ? '🏬 FBU' : '🏬 FBU';
+      case 'dropshipper': return ar ? '🚚 دروب شيبر' : '🚚 Dropshipper';
+      case 'hybrid': return ar ? '🔀 مختلط' : '🔀 Hybrid';
+      case 'consignment': return ar ? '📦 أمانة' : '📦 Consignment';
+      default: return ar ? '🧰 بائع' : '🧰 Seller';
+    }
   }
 
   Widget _logoFallback(String name) => Container(color: UC.yellow,

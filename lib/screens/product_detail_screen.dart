@@ -182,6 +182,29 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     ? 'هذا المنتج مؤرشف — غير ظاهر للعملاء ولا يقبل طلبات. استرجعه لإعادته.'
                     : 'This product is archived — hidden from customers. Restore it to bring it back.',
                     style: UT.small))),
+              if (p.underReview) Padding(padding: const EdgeInsets.only(top: 8),
+                child: Container(width: double.infinity, padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: UC.warnBg,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFF0D49A))),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      const Icon(Icons.hourglass_top, size: 16, color: Color(0xFF92400E)),
+                      const SizedBox(width: 6),
+                      Text(ar ? 'قيد المراجعة' : 'Under review',
+                        style: const TextStyle(fontWeight: FontWeight.w900,
+                          color: Color(0xFF92400E), fontSize: 13)),
+                    ]),
+                    const SizedBox(height: 4),
+                    Text(ar
+                      ? 'تعديلك بانتظار موافقة الأدمن — يعمل المنتج بالقيمة القديمة حتى الاعتماد.'
+                      : 'Your edit awaits admin approval — the product keeps its old values until then.',
+                      style: UT.small),
+                    if (p.pendingChange.isNotEmpty) Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(p.pendingChange,
+                        style: const TextStyle(fontSize: 11.5, color: Color(0xFF6b4516)))),
+                  ]))),
               if (p.rejectionReason.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 8),
                 child: Container(padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(color: UC.dangerBg,
@@ -193,6 +216,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             _kv(ar ? 'الكمية المتاحة' : 'Qty available', p.qty.toStringAsFixed(0)),
             _kv(ar ? 'سعر التكلفة' : 'Cost', p.standardPrice.format(lang)),
             _kv(ar ? 'سعر البيع' : 'Sale price', p.listPrice.format(lang)),
+            _kv(ar ? 'هامش الربح' : 'Margin', _marginPct(p)),
+            if (VendorApi.instance.vendorType == 'fbu'
+                || VendorApi.instance.vendorType == 'consignment')
+              _kv(ar ? 'عائدك (تخزين لدى يلو) = التكلفة' : 'Your payout (stored at Uellow) = cost',
+                p.standardPrice.format(lang)),
             if (p.sku.isNotEmpty) _kv('SKU', p.sku),
             if (p.barcode.isNotEmpty) _kv('Barcode', p.barcode),
             if (p.weight > 0) _kv(ar ? 'الوزن (كجم)' : 'Weight (kg)', p.weight.toStringAsFixed(2)),
@@ -265,6 +293,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       const SizedBox(height: 8),
       child,
     ]));
+
+  String _marginPct(ProductDetail p) {
+    final sale = p.listPrice.amount, cost = p.standardPrice.amount;
+    if (sale <= 0) return '—';
+    return '${((sale - cost) / sale * 100).toStringAsFixed(1)}%';
+  }
 
   Widget _kv(String k, String v) => Padding(padding: const EdgeInsets.symmetric(vertical: 3),
     child: Row(children: [

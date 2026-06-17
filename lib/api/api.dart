@@ -18,6 +18,8 @@ class VendorApi {
   String? _token;
   Vendor? _vendor;
   String vendorType = 'seller'; // fbu | seller | dropshipper | hybrid | consignment
+  bool isAdmin = false;    // user is a marketplace admin (can enter admin mode)
+  bool adminOnly = false;  // logged-in user has no vendor record (pure admin)
   final ValueNotifier<String> langNotifier = ValueNotifier<String>('en');
 
   String get token => _token ?? '';
@@ -31,6 +33,8 @@ class VendorApi {
   Future<void> init() async {
     final p = await SharedPreferences.getInstance();
     _token = p.getString('vendor_token_v1');
+    isAdmin = p.getBool('vendor_is_admin_v1') ?? false;
+    adminOnly = p.getBool('vendor_admin_only_v1') ?? false;
     final lng = p.getString('vendor_lang_v1');
     if (lng != null && lng.isNotEmpty) setLang(lng);
     final cached = p.getString('vendor_me_v1');
@@ -43,6 +47,8 @@ class VendorApi {
     final p = await SharedPreferences.getInstance();
     if (_token != null) await p.setString('vendor_token_v1', _token!);
     else await p.remove('vendor_token_v1');
+    await p.setBool('vendor_is_admin_v1', isAdmin);
+    await p.setBool('vendor_admin_only_v1', adminOnly);
     await p.setString('vendor_lang_v1', langNotifier.value);
     if (_vendor != null) {
       await p.setString('vendor_me_v1', jsonEncode(_vendor!.toJson()));
@@ -93,17 +99,24 @@ class VendorApi {
     } catch (_) {}
   }
 
-  Future<Vendor> login(String identifier, String password) async {
+  Future<void> login(String identifier, String password) async {
     final j = _need(await _post('/api/vendor/v1/auth/login', {
       'login': identifier, 'password': password,
       'platform': 'android', 'app_version': '1.0.0',
     }));
     final d = j['data'] as Map<String, dynamic>;
     _token = d['token'] as String?;
-    _vendor = Vendor.fromJson(d['vendor'] as Map<String, dynamic>);
-    await _persist();
-    unawaited(capabilities());
-    return _vendor!;
+    isAdmin = d['is_admin'] == true;
+    if (d['vendor'] != null) {
+      _vendor = Vendor.fromJson(d['vendor'] as Map<String, dynamic>);
+      adminOnly = false;
+      await _persist();
+      unawaited(capabilities());
+    } else {
+      _vendor = null;
+      adminOnly = true; // pure admin, no vendor record
+      await _persist();
+    }
   }
   /// Public vendor-account request (no auth). Submits the application form.
   Future<void> applyVendor(Map<String, String> data) async {
@@ -134,8 +147,47 @@ class VendorApi {
 
   Future<void> logout() async {
     try { await _post('/api/vendor/v1/auth/logout'); } catch (_) {}
-    _token = null; _vendor = null;
+    _token = null; _vendor = null; isAdmin = false; adminOnly = false;
     await _persist();
+  }
+
+  // ── Admin mode (marketplace admin) ────────────────────────────────
+  Future<Map<String, dynamic>> adminDashboard() async {
+    final j = _need(await _get('/api/vendor/v1/admin/dashboard'));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+  Future<Map<String, dynamic>> adminOrders({String? state, String? search, int page = 1}) async {
+    final j = _need(await _get('/api/vendor/v1/admin/orders', query: {
+      if (state != null && state.isNotEmpty) 'state': state,
+      if (search != null && search.isNotEmpty) 'search': search,
+      'page': '$page',
+    }));
+    return {'data': (j['data'] as List).cast<dynamic>(), 'meta': j['meta'] ?? {}};
+  }
+  Future<List<Map<String, dynamic>>> adminVendors({String? search, String? state}) async {
+    final j = _need(await _get('/api/vendor/v1/admin/vendors', query: {
+      if (search != null && search.isNotEmpty) 'search': search,
+      if (state != null && state.isNotEmpty) 'state': state,
+    }));
+    return ((j['data'] as List).cast<Map>()).map((m) => m.cast<String, dynamic>()).toList();
+  }
+  Future<Map<String, dynamic>> adminVendor(int id) async {
+    final j = _need(await _get('/api/vendor/v1/admin/vendors/$id'));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+  Future<Map<String, dynamic>> adminSaveVendorSettings(int id, Map<String, dynamic> body) async {
+    final j = _need(await _post('/api/vendor/v1/admin/vendors/$id/settings', body));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+  Future<Map<String, dynamic>> adminApprovals() async {
+    final j = _need(await _get('/api/vendor/v1/admin/approvals'));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+  Future<void> adminDecideChange(int id, String decision, {String reason = ''}) async {
+    _need(await _post('/api/vendor/v1/admin/changes/$id/$decision', {'reason': reason}));
+  }
+  Future<void> adminDecideProduct(int id, String decision, {String reason = ''}) async {
+    _need(await _post('/api/vendor/v1/admin/products/$id/$decision', {'reason': reason}));
   }
   Future<Vendor> me() async {
     final j = _need(await _get('/api/vendor/v1/me'));

@@ -31,7 +31,8 @@ class _LoginScreenState extends State<LoginScreen> {
       await VendorApi.instance.login(_id.text.trim(), _pw.text.trim());
       unawaited(FcmService.instance.register());
       if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/home');
+      Navigator.pushReplacementNamed(context,
+        VendorApi.instance.adminOnly ? '/admin' : '/home');
     } on VendorApiException catch (e) {
       setState(() { _busy = false; _err = e.message; });
     } catch (e) {

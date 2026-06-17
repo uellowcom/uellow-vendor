@@ -16,7 +16,15 @@ class _SplashScreenState extends State<SplashScreen> {
   }
   Future<void> _go() async {
     final api = VendorApi.instance;
-    if (api.token.isEmpty || api.vendor == null) {
+    if (api.token.isEmpty) {
+      Navigator.pushReplacementNamed(context, '/login');
+      return;
+    }
+    if (api.adminOnly) {
+      Navigator.pushReplacementNamed(context, '/admin');
+      return;
+    }
+    if (api.vendor == null) {
       Navigator.pushReplacementNamed(context, '/login');
       return;
     }

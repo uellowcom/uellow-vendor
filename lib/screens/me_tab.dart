@@ -85,6 +85,10 @@ class MeTab extends StatelessWidget {
         _row(context, Icons.bar_chart,
           ar ? 'التحليلات' : 'Analytics',
           ar ? 'المبيعات + أعلى المنتجات' : 'Sales + top products', '/analytics'),
+        if (VendorApi.instance.isAdmin)
+          _row(context, Icons.shield_outlined,
+            ar ? '🛡️ وضع الأدمن' : '🛡️ Admin mode',
+            ar ? 'كل الطلبات + التُّجار + الاعتمادات' : 'All orders + vendors + approvals', '/admin'),
         Padding(padding: const EdgeInsets.all(14),
           child: OutlinedButton.icon(
             onPressed: () async {

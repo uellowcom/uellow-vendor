@@ -26,6 +26,7 @@ import 'screens/stock_screen.dart';
 import 'screens/restock_screen.dart';
 import 'screens/style_screen.dart';
 import 'screens/price_requests_screen.dart';
+import 'screens/admin/admin_screens.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -75,6 +76,7 @@ class VendorApp extends StatelessWidget {
             '/restock':     (_) => const RestockScreen(),
             '/style':       (_) => const StyleScreen(),
             '/price-requests': (_) => const PriceRequestsScreen(),
+            '/admin':       (_) => const AdminHomeScreen(),
           },
           onGenerateRoute: (settings) {
             final args = (settings.arguments as Map?) ?? const {};

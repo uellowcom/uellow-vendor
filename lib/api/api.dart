@@ -254,14 +254,27 @@ class VendorApi {
     return ProductDetail.fromJson(((j['data'] as Map)['product'] as Map).cast<String, dynamic>());
   }
   Future<int> productCreate({required String name, required double price,
-      String description = '', String sku = '', Uint8List? image}) async {
+      String description = '', String sku = '', Uint8List? image,
+      String? nameAr, String? barcode, double? cost, double? weight,
+      int? categoryId, List<Uint8List>? gallery}) async {
     final body = <String, dynamic>{
-      'name': name, 'list_price': price,
+      'name_en': name, 'list_price': price,
       'description_sale': description, 'default_code': sku,
+      if (nameAr != null && nameAr.isNotEmpty) 'name_ar': nameAr,
+      if (barcode != null && barcode.isNotEmpty) 'barcode': barcode,
+      if (cost != null) 'standard_price': cost,
+      if (weight != null) 'weight': weight,
+      if (categoryId != null && categoryId > 0) 'category_id': categoryId,
       if (image != null) 'image_base64': base64Encode(image),
+      if (gallery != null && gallery.isNotEmpty)
+        'gallery': gallery.map((g) => base64Encode(g)).toList(),
     };
     final j = _need(await _post('/api/vendor/v1/products/create', body));
     return (j['data'] as Map)['id'] as int;
+  }
+  Future<List<Map<String, dynamic>>> categories() async {
+    final j = _need(await _get('/api/vendor/v1/categories'));
+    return ((j['data'] as List).cast<Map>()).map((m) => m.cast<String, dynamic>()).toList();
   }
   Future<void> productUpdate(int id, Map<String, dynamic> body) async {
     _need(await _post('/api/vendor/v1/products/$id/update', body));
@@ -655,6 +668,10 @@ class ProductDetail extends ProductSummary {
   final double weight;
   final List<Map<String, dynamic>> variants;
   final String pendingChange;
+  final String nameAr, nameEn;
+  final int categoryId;
+  final String categoryName;
+  final List<String> gallery;
   const ProductDetail({required super.id, required super.name,
       required super.listPrice, required super.standardPrice,
       required super.isPublished, required super.qty, required super.salesCount,
@@ -662,7 +679,9 @@ class ProductDetail extends ProductSummary {
       super.active, super.underReview,
       required this.descriptionSale, required this.description,
       required this.sku, required this.barcode, required this.weight,
-      required this.variants, this.pendingChange = ''});
+      required this.variants, this.pendingChange = '',
+      this.nameAr = '', this.nameEn = '', this.categoryId = 0,
+      this.categoryName = '', this.gallery = const []});
   factory ProductDetail.fromJson(Map<String, dynamic> j) {
     final b = ProductSummary.fromJson(j);
     return ProductDetail(
@@ -678,6 +697,11 @@ class ProductDetail extends ProductSummary {
       variants: ((j['variant_ids'] as List?) ?? const [])
         .map((e) => (e as Map).cast<String, dynamic>()).toList(),
       pendingChange: (j['pending_change'] ?? '').toString(),
+      nameAr: (j['name_ar'] ?? '').toString(),
+      nameEn: (j['name_en'] ?? '').toString(),
+      categoryId: ((j['category'] as Map?)?['id'] ?? 0) as int,
+      categoryName: (((j['category'] as Map?)?['name'] as Map?)?['en'] ?? '').toString(),
+      gallery: ((j['gallery'] as List?) ?? const []).map((e) => e.toString()).toList(),
     );
   }
 }

@@ -382,6 +382,14 @@ class VendorApi {
       _need(await _post('/api/vendor/v1/restock',
           {'product_id': productId, 'qty': qty, 'notes': notes}));
 
+  // ── Stock returns (withdraw goods stored at Uellow) ──
+  Future<List<Map<String, dynamic>>> returnList() async =>
+      _dataList(_need(await _get('/api/vendor/v1/returns')));
+  Future<void> returnCreate(String pickupMode, String reason,
+      List<Map<String, dynamic>> items) async =>
+      _need(await _post('/api/vendor/v1/returns',
+          {'pickup_mode': pickupMode, 'reason': reason, 'items': items}));
+
   // ── Store style ──
   Future<Map<String, dynamic>> styleGet() async {
     final j = _need(await _get('/api/vendor/v1/style'));

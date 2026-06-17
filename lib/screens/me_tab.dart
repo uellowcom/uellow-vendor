@@ -66,6 +66,10 @@ class MeTab extends StatelessWidget {
         _row(context, Icons.refresh,
           ar ? 'طلبات التعبئة' : 'Restock requests',
           ar ? 'متابعة طلبات التعبئة' : 'Track your restock requests', '/restock'),
+        if (VendorApi.instance.vendorType == 'fbu' || VendorApi.instance.vendorType == 'consignment')
+          _row(context, Icons.assignment_return_outlined,
+            ar ? 'استرجاع البضاعة' : 'Stock returns',
+            ar ? 'سحب منتجاتك من مخازن يلو' : 'Withdraw goods from Uellow', '/returns'),
         _row(context, Icons.sell_outlined,
           ar ? 'طلبات الأسعار' : 'Price requests',
           ar ? 'أكّد أو اقترح أسعارك' : 'Confirm or propose your prices', '/price-requests'),

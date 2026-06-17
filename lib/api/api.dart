@@ -217,6 +217,9 @@ class VendorApi {
   Future<void> productArchive(int id) async {
     _need(await _post('/api/vendor/v1/products/$id/delete'));
   }
+  Future<void> productRestore(int id) async {
+    _need(await _post('/api/vendor/v1/products/$id/restore'));
+  }
 
   // Reviews
   Future<List<Review>> reviews({int page = 1}) async {
@@ -566,10 +569,12 @@ class ProductSummary {
   final double qty, salesCount;
   final String approvalState, rejectionReason;
   final String? imageUrl;
+  final bool active;
   const ProductSummary({required this.id, required this.name,
       required this.listPrice, required this.standardPrice,
       required this.isPublished, required this.qty, required this.salesCount,
-      required this.approvalState, required this.rejectionReason, this.imageUrl});
+      required this.approvalState, required this.rejectionReason, this.imageUrl,
+      this.active = true});
   factory ProductSummary.fromJson(Map<String, dynamic> j) => ProductSummary(
     id: (j['id'] ?? 0) as int,
     name: BL.fromJson(j['name']),
@@ -581,6 +586,7 @@ class ProductSummary {
     approvalState: (j['approval_state'] ?? 'draft').toString(),
     rejectionReason: (j['rejection_reason'] ?? '').toString(),
     imageUrl: j['image_url'] as String?,
+    active: (j['active'] ?? true) as bool,
   );
 }
 
@@ -592,6 +598,7 @@ class ProductDetail extends ProductSummary {
       required super.listPrice, required super.standardPrice,
       required super.isPublished, required super.qty, required super.salesCount,
       required super.approvalState, required super.rejectionReason, super.imageUrl,
+      super.active,
       required this.descriptionSale, required this.description,
       required this.sku, required this.barcode, required this.weight,
       required this.variants});
@@ -601,6 +608,7 @@ class ProductDetail extends ProductSummary {
       id: b.id, name: b.name, listPrice: b.listPrice, standardPrice: b.standardPrice,
       isPublished: b.isPublished, qty: b.qty, salesCount: b.salesCount,
       approvalState: b.approvalState, rejectionReason: b.rejectionReason, imageUrl: b.imageUrl,
+      active: b.active,
       descriptionSale: (j['description_sale'] ?? '').toString(),
       description: (j['description'] ?? '').toString(),
       sku: (j['default_code'] ?? '').toString(),

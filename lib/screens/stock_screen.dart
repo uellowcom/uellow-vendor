@@ -52,7 +52,8 @@ class _StockScreenState extends State<StockScreen> {
           TextButton(onPressed: () => Navigator.pop(c, false),
               child: Text(ar ? 'إلغاء' : 'Cancel')),
           FilledButton(onPressed: () => Navigator.pop(c, true),
-              style: FilledButton.styleFrom(backgroundColor: UC.brown),
+              style: FilledButton.styleFrom(
+                  backgroundColor: UC.brown, foregroundColor: UC.yellow),
               child: Text(ar ? 'إرسال' : 'Submit')),
         ],
       ),

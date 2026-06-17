@@ -12,11 +12,77 @@ class ProductDetailScreen extends StatefulWidget {
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   Future<ProductDetail>? _f;
+  bool _canUpdateStock = true;
+  bool _canRestock = true;
   @override
-  void initState() { super.initState(); _f = VendorApi.instance.productDetail(widget.productId); }
+  void initState() {
+    super.initState();
+    _f = VendorApi.instance.productDetail(widget.productId);
+    _checkCaps();
+  }
+  Future<void> _checkCaps() async {
+    try {
+      final caps = await VendorApi.instance.capabilities();
+      final c = (caps['capabilities'] as Map?) ?? const {};
+      if (mounted) setState(() {
+        _canUpdateStock = c['update_stock'] != false;
+        _canRestock = c['restock'] != false;
+      });
+    } catch (_) {}
+  }
   Future<void> _refresh() async {
     setState(() => _f = VendorApi.instance.productDetail(widget.productId));
     await _f;
+  }
+
+  Future<void> _restore(ProductDetail p) async {
+    final ar = VendorApi.instance.lang == 'ar';
+    try {
+      await VendorApi.instance.productRestore(p.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(ar ? 'تم استرجاع المنتج' : 'Product restored')));
+      _refresh();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
+
+  /// FBU / restock-only vendors can't set stock directly — they request it.
+  Future<void> _requestRestock(ProductDetail p) async {
+    final ar = VendorApi.instance.lang == 'ar';
+    final ctrl = TextEditingController();
+    final ok = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
+      title: Text(ar ? 'طلب تعبئة' : 'Request restock'),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text(p.name.t(ar ? 'ar' : 'en'), style: UT.body),
+        const SizedBox(height: 10),
+        TextField(controller: ctrl, keyboardType: TextInputType.number,
+          decoration: InputDecoration(labelText: ar ? 'الكمية' : 'Quantity',
+            border: const OutlineInputBorder())),
+      ]),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(c, false), child: Text(ar ? 'إلغاء' : 'Cancel')),
+        FilledButton(onPressed: () => Navigator.pop(c, true),
+          style: FilledButton.styleFrom(backgroundColor: UC.brown, foregroundColor: UC.yellow),
+          child: Text(ar ? 'إرسال' : 'Submit')),
+      ]));
+    if (ok != true) return;
+    final qty = int.tryParse(ctrl.text.trim()) ?? 0;
+    if (qty <= 0) return;
+    // restock endpoint targets a stockable variant (product.product id).
+    final variantId = p.variants.isNotEmpty
+      ? (p.variants.first['id'] as int? ?? p.id) : p.id;
+    try {
+      await VendorApi.instance.restockCreate(variantId, qty, '');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(ar ? 'تم إرسال طلب التعبئة' : 'Restock request sent')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
   }
 
   Future<void> _stockSheet(ProductDetail p) async {
@@ -104,7 +170,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 UPill(text: p.approvalState.toUpperCase(),
                   bg: p.approvalState == 'approved' ? UC.successBg : UC.warnBg,
                   fg: p.approvalState == 'approved' ? UC.successDk : const Color(0xFF92400E)),
+                if (!p.active) ...[
+                  const SizedBox(width: 6),
+                  UPill(text: ar ? 'مؤرشف' : 'ARCHIVED', bg: UC.dangerBg, fg: UC.dangerDk),
+                ],
               ]),
+              if (!p.active) Padding(padding: const EdgeInsets.only(top: 8),
+                child: Container(width: double.infinity, padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: UC.bg, borderRadius: BorderRadius.circular(8)),
+                  child: Text(ar
+                    ? 'هذا المنتج مؤرشف — غير ظاهر للعملاء ولا يقبل طلبات. استرجعه لإعادته.'
+                    : 'This product is archived — hidden from customers. Restore it to bring it back.',
+                    style: UT.small))),
               if (p.rejectionReason.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 8),
                 child: Container(padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(color: UC.dangerBg,
@@ -120,10 +197,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             if (p.barcode.isNotEmpty) _kv('Barcode', p.barcode),
             if (p.weight > 0) _kv(ar ? 'الوزن (كجم)' : 'Weight (kg)', p.weight.toStringAsFixed(2)),
             const SizedBox(height: 8),
-            Row(children: [
-              Expanded(child: OutlinedButton.icon(onPressed: () => _stockSheet(p),
-                icon: const Icon(Icons.inventory_2, size: 16),
-                label: Text(ar ? 'تحديث المخزون' : 'Update stock'))),
+            if (p.active) Row(children: [
+              Expanded(child: _canUpdateStock
+                ? OutlinedButton.icon(onPressed: () => _stockSheet(p),
+                    icon: const Icon(Icons.inventory_2, size: 16),
+                    label: Text(ar ? 'تحديث المخزون' : 'Update stock'))
+                : OutlinedButton.icon(
+                    onPressed: _canRestock ? () => _requestRestock(p) : null,
+                    icon: const Icon(Icons.add_box_outlined, size: 16),
+                    label: Text(ar ? 'طلب تعبئة' : 'Request restock'))),
               const SizedBox(width: 6),
               Expanded(child: ElevatedButton.icon(
                 onPressed: () async {
@@ -154,13 +236,20 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ]))).toList())),
           const SizedBox(height: 18),
           Padding(padding: const EdgeInsets.all(14),
-            child: OutlinedButton.icon(onPressed: () => _archive(p),
-              icon: const Icon(Icons.delete_outline, size: 16),
-              label: Text(ar ? 'أرشفة المنتج' : 'Archive product',
-                style: const TextStyle(color: UC.dangerDk, fontWeight: FontWeight.w800)),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: UC.dangerBg, width: 1.5),
-                minimumSize: const Size(double.infinity, 46)))),
+            child: p.active
+              ? OutlinedButton.icon(onPressed: () => _archive(p),
+                  icon: const Icon(Icons.delete_outline, size: 16),
+                  label: Text(ar ? 'أرشفة المنتج' : 'Archive product',
+                    style: const TextStyle(color: UC.dangerDk, fontWeight: FontWeight.w800)),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: UC.dangerBg, width: 1.5),
+                    minimumSize: const Size(double.infinity, 46)))
+              : ElevatedButton.icon(onPressed: () => _restore(p),
+                  icon: const Icon(Icons.restore, size: 18),
+                  label: Text(ar ? 'استرجاع المنتج' : 'Restore product'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: UC.yellow, foregroundColor: UC.brown,
+                    minimumSize: const Size(double.infinity, 48)))),
           const SizedBox(height: 24),
         ]);
       }),

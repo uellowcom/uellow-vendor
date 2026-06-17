@@ -49,6 +49,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         final ven = (d['vendors'] as Map?) ?? const {};
         final app = (d['approvals'] as Map?) ?? const {};
         final top = (d['top_vendors'] as List?) ?? const [];
+        final byType = (d['by_type'] as List?) ?? const [];
         return RefreshIndicator(
           onRefresh: () async => setState(() => _f = VendorApi.instance.adminDashboard()),
           child: ListView(padding: const EdgeInsets.all(12), children: [
@@ -80,6 +81,19 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             _navTile(context, Icons.fact_check, ar ? 'طابور الاعتماد' : 'Approvals', const AdminApprovalsScreen(),
               badge: (app['products'] ?? 0) + (app['edits'] ?? 0)),
             const SizedBox(height: 10),
+            if (byType.isNotEmpty) ...[
+              Text(ar ? 'المبيعات حسب نوع التاجر (الشهر)' : 'GMV by vendor type (month)', style: UT.h2),
+              const SizedBox(height: 6),
+              for (final b in byType) Container(
+                margin: const EdgeInsets.only(bottom: 6), padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: UC.border)),
+                child: Row(children: [
+                  Expanded(child: Text('${b['type'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w700))),
+                  Text(_money(b['gmv'] as Map?), style: const TextStyle(fontWeight: FontWeight.w900, color: _admin)),
+                ])),
+              const SizedBox(height: 10),
+            ],
             if (top.isNotEmpty) ...[
               Text(ar ? 'أفضل التُّجار (الشهر)' : 'Top vendors (month)', style: UT.h2),
               const SizedBox(height: 6),

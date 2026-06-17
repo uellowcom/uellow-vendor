@@ -506,13 +506,14 @@ class Dashboard {
   final int followerCount;
   final String tier;
   final List<RecentOrder> recentOrders;
+  final Map<String, dynamic> kpis;
   const Dashboard({required this.revToday, required this.revWeek, required this.revMonth,
       required this.revTotal, required this.ordersPending, required this.ordersNew,
       required this.ordersConfirmed, required this.ordersCompleted, required this.ordersCancelled,
       required this.productsActive, required this.productsPendingApproval,
       required this.productsLowStock, required this.walletBalance,
       required this.avgRating, required this.followerCount, required this.tier,
-      required this.recentOrders});
+      required this.recentOrders, this.kpis = const {}});
   factory Dashboard.fromJson(Map<String, dynamic> j) {
     final rev = (j['revenue'] as Map?)?.cast<String, dynamic>() ?? const {};
     final ord = (j['orders'] as Map?)?.cast<String, dynamic>() ?? const {};
@@ -536,6 +537,7 @@ class Dashboard {
       tier: (j['tier'] ?? 'bronze').toString(),
       recentOrders: ((j['recent_orders'] as List?) ?? const [])
         .map((e) => RecentOrder.fromJson((e as Map).cast<String, dynamic>())).toList(),
+      kpis: (j['kpis'] as Map?)?.cast<String, dynamic>() ?? const {},
     );
   }
 }

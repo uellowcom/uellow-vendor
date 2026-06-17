@@ -102,6 +102,20 @@ class _DashboardTabState extends State<DashboardTab> {
                 const SizedBox(width: 6),
                 _orderTile(d.ordersCancelled, ar ? 'ملغاة' : 'Cancelled', UC.dangerDk, UC.dangerBg),
               ])),
+            // Performance KPIs
+            Padding(padding: const EdgeInsets.fromLTRB(14, 14, 14, 4),
+              child: Row(children: [Text(ar ? 'الأداء' : 'Performance', style: UT.h3)])),
+            Padding(padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Row(children: [
+                _kpiTile(ar ? 'متوسط الطلب' : 'AOV',
+                  '${(d.kpis['aov'] is Map) ? (d.kpis['aov']['amount'] ?? 0) : 0} ${(d.kpis['aov'] is Map) ? (d.kpis['aov']['symbol'] ?? '') : ''}'),
+                const SizedBox(width: 6),
+                _kpiTile(ar ? 'مبيعات الشهر' : 'Units (mo)', '${d.kpis['units_month'] ?? 0}'),
+                const SizedBox(width: 6),
+                _kpiTile(ar ? 'عملاء عائدون' : 'Repeat', '${d.kpis['repeat_pct'] ?? 0}%'),
+                const SizedBox(width: 6),
+                _kpiTile(ar ? 'استرجاع مفتوح' : 'Returns', '${d.kpis['open_returns'] ?? 0}'),
+              ])),
             // Product cards
             Padding(padding: const EdgeInsets.fromLTRB(14, 14, 14, 4),
               child: Row(children: [Text(ar ? 'المنتجات' : 'Products', style: UT.h3)])),
@@ -184,6 +198,17 @@ class _DashboardTabState extends State<DashboardTab> {
         Text('$v', style: TextStyle(color: c, fontSize: 20, fontWeight: FontWeight.w900)),
       ]),
       Text(l, style: const TextStyle(color: UC.muted, fontSize: 10, fontWeight: FontWeight.w700)),
+    ])));
+
+  Widget _kpiTile(String l, String v) => Expanded(child: Container(
+    padding: const EdgeInsets.all(10),
+    decoration: BoxDecoration(color: UC.yellowFaint, border: Border.all(color: UC.border),
+      borderRadius: BorderRadius.circular(11)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(v, style: const TextStyle(color: UC.brown, fontSize: 15, fontWeight: FontWeight.w900),
+        maxLines: 1, overflow: TextOverflow.ellipsis),
+      Text(l, style: const TextStyle(color: UC.muted, fontSize: 9.5, fontWeight: FontWeight.w700),
+        maxLines: 1, overflow: TextOverflow.ellipsis),
     ])));
 
   Widget _recentRow(RecentOrder o, String lang) => Padding(

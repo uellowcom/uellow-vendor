@@ -108,6 +108,28 @@ class VendorApi {
     _need(await _post('/api/vendor/v1/auth/apply', data));
   }
 
+  // ── Price-update requests ─────────────────────────────────────────
+  Future<List<Map<String, dynamic>>> priceRequests() async {
+    final j = _need(await _get('/api/vendor/v1/price-requests'));
+    final data = (j['data']?['requests'] as List?) ?? const [];
+    return data.map((e) => (e as Map).cast<String, dynamic>()).toList();
+  }
+
+  Future<Map<String, dynamic>> priceRequest(int id) async {
+    final j = _need(await _get('/api/vendor/v1/price-requests/$id'));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+
+  /// responses: [{'line_id':1,'action':'match'},
+  ///             {'line_id':2,'action':'price','price':9.5},
+  ///             {'line_id':3,'action':'oos'}]
+  Future<Map<String, dynamic>> respondPriceRequest(
+      int id, List<Map<String, dynamic>> responses) async {
+    final j = _need(await _post(
+        '/api/vendor/v1/price-requests/$id/respond', {'responses': responses}));
+    return (j['data']?['summary'] as Map?)?.cast<String, dynamic>() ?? {};
+  }
+
   Future<void> logout() async {
     try { await _post('/api/vendor/v1/auth/logout'); } catch (_) {}
     _token = null; _vendor = null;

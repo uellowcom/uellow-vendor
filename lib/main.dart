@@ -30,6 +30,7 @@ import 'screens/admin/admin_screens.dart';
 import 'screens/returns_screen.dart';
 import 'screens/reports_screen.dart';
 import 'screens/bulk_import_screen.dart';
+import 'screens/developer_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -83,6 +84,7 @@ class VendorApp extends StatelessWidget {
             '/returns':     (_) => const ReturnsScreen(),
             '/reports':     (_) => const ReportsScreen(),
             '/import':      (_) => const BulkImportScreen(),
+            '/developer':   (_) => const DeveloperScreen(),
           },
           onGenerateRoute: (settings) {
             final args = (settings.arguments as Map?) ?? const {};

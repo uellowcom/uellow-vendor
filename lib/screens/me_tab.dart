@@ -95,6 +95,9 @@ class MeTab extends StatelessWidget {
         _row(context, Icons.table_view_outlined,
           ar ? 'التقارير' : 'Reports',
           ar ? 'تصدير Excel للطلبات والمنتجات' : 'Excel exports', '/reports'),
+        _row(context, Icons.code,
+          ar ? 'المطورون / API' : 'Developer / API',
+          ar ? 'مفاتيح API و Webhooks للتكامل' : 'API keys & webhooks for integrations', '/developer'),
         if (VendorApi.instance.isAdmin)
           _row(context, Icons.shield_outlined,
             ar ? '🛡️ وضع الأدمن' : '🛡️ Admin mode',

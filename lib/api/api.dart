@@ -294,6 +294,42 @@ class VendorApi {
     return (j['data'] as Map).cast<String, dynamic>();
   }
 
+  // ── Developer / Open API ────────────────────────────────────
+  Future<Map<String, dynamic>> devMeta() async {
+    final j = _need(await _get('/api/vendor/v1/dev/meta'));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+  Future<List<Map<String, dynamic>>> apiKeys() async {
+    final j = _need(await _get('/api/vendor/v1/dev/keys'));
+    return ((j['data'] as List).cast<Map>()).map((m) => m.cast<String, dynamic>()).toList();
+  }
+  /// Returns {id, key, scope} — `key` is the full secret, shown only once.
+  Future<Map<String, dynamic>> apiKeyCreate(String name, String scope) async {
+    final j = _need(await _post('/api/vendor/v1/dev/keys/create',
+        {'name': name, 'scope': scope}));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+  Future<void> apiKeyRevoke(int id) async {
+    _need(await _post('/api/vendor/v1/dev/keys/$id/revoke'));
+  }
+  Future<List<Map<String, dynamic>>> webhooks() async {
+    final j = _need(await _get('/api/vendor/v1/dev/webhooks'));
+    return ((j['data'] as List).cast<Map>()).map((m) => m.cast<String, dynamic>()).toList();
+  }
+  Future<Map<String, dynamic>> webhookCreate(
+      String name, String url, List<String> events) async {
+    final j = _need(await _post('/api/vendor/v1/dev/webhooks/create',
+        {'name': name, 'url': url, 'events': events}));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+  Future<void> webhookDelete(int id) async {
+    _need(await _post('/api/vendor/v1/dev/webhooks/$id/delete'));
+  }
+  Future<Map<String, dynamic>> webhookTest(int id) async {
+    final j = _need(await _post('/api/vendor/v1/dev/webhooks/$id/test'));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+
   // Reviews
   Future<List<Review>> reviews({int page = 1}) async {
     final j = _need(await _get('/api/vendor/v1/reviews', query: {'page': '$page'}));

@@ -223,6 +223,17 @@ class VendorApi {
     final j = _need(await _get('/api/vendor/v1/orders/$id'));
     return OrderDetail.fromJson(((j['data'] as Map)['order'] as Map).cast<String, dynamic>());
   }
+  /// Fulfillment hub — returns {buckets:{to_confirm,to_ship,shipped,completed:[OrderSummary]},
+  /// counts:{...}, sla:{overdue,due_soon}}.
+  Future<OrderHub> orderHub() async {
+    final j = _need(await _get('/api/vendor/v1/orders/hub'));
+    return OrderHub.fromJson((j['data'] as Map).cast<String, dynamic>());
+  }
+  /// Bulk confirm/ship. Returns {done, failed}.
+  Future<Map<String, dynamic>> ordersBulk(List<int> ids, String action) async {
+    final j = _need(await _post('/api/vendor/v1/orders/bulk', {'ids': ids, 'action': action}));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
   Future<void> orderConfirm(int id) async { _need(await _post('/api/vendor/v1/orders/$id/confirm')); }
   Future<void> orderShip(int id) async { _need(await _post('/api/vendor/v1/orders/$id/ship')); }
   Future<void> orderCancel(int id, String reason) async {
@@ -621,9 +632,11 @@ class OrderSummary {
   final Money amount;
   final int itemCount;
   final Map<String, dynamic> customer;
+  final String slaState, fulfillDue;
   const OrderSummary({required this.id, required this.name, required this.state,
       required this.when, required this.invoiceStatus, required this.stateLabel,
-      required this.amount, required this.itemCount, required this.customer});
+      required this.amount, required this.itemCount, required this.customer,
+      this.slaState = '', this.fulfillDue = ''});
   factory OrderSummary.fromJson(Map<String, dynamic> j) => OrderSummary(
     id: (j['id'] ?? 0) as int,
     name: (j['name'] ?? '').toString(),
@@ -634,7 +647,36 @@ class OrderSummary {
     amount: Money.fromJson((j['amount'] as Map?)?.cast<String, dynamic>()),
     itemCount: (j['item_count'] ?? 0) as int,
     customer: (j['customer'] as Map?)?.cast<String, dynamic>() ?? const {},
+    slaState: (j['sla_state'] ?? '').toString(),
+    fulfillDue: (j['fulfill_due'] ?? '').toString(),
   );
+}
+
+class OrderHub {
+  final Map<String, List<OrderSummary>> buckets;
+  final Map<String, int> counts;
+  final int overdue, dueSoon;
+  const OrderHub({required this.buckets, required this.counts,
+      required this.overdue, required this.dueSoon});
+  factory OrderHub.fromJson(Map<String, dynamic> j) {
+    final b = (j['buckets'] as Map?)?.cast<String, dynamic>() ?? const {};
+    Map<String, List<OrderSummary>> parse() {
+      final out = <String, List<OrderSummary>>{};
+      for (final k in ['to_confirm', 'to_ship', 'shipped', 'completed']) {
+        out[k] = ((b[k] as List?) ?? const [])
+            .map((e) => OrderSummary.fromJson((e as Map).cast<String, dynamic>())).toList();
+      }
+      return out;
+    }
+    final c = (j['counts'] as Map?)?.cast<String, dynamic>() ?? const {};
+    final s = (j['sla'] as Map?)?.cast<String, dynamic>() ?? const {};
+    return OrderHub(
+      buckets: parse(),
+      counts: c.map((k, v) => MapEntry(k, (v ?? 0) as int)),
+      overdue: (s['overdue'] ?? 0) as int,
+      dueSoon: (s['due_soon'] ?? 0) as int,
+    );
+  }
 }
 
 class OrderDetail extends OrderSummary {

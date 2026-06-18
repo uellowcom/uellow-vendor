@@ -10,6 +10,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 const String kVendorBase = String.fromEnvironment(
   'UELLOW_BASE', defaultValue: 'https://www.uellow.com');
 
+/// Null-safe int coercion. JSON numbers can arrive as double (e.g. 3.0) which
+/// makes a plain `as int` cast throw "type 'double' is not a subtype of int".
+/// Use this everywhere instead of `as int`.
+int _ai(dynamic v, [int d = 0]) {
+  if (v is int) return v;
+  if (v is num) return v.toInt();
+  if (v is String) return int.tryParse(v) ?? double.tryParse(v)?.toInt() ?? d;
+  return d;
+}
+
 class VendorApi {
   VendorApi._();
   static final VendorApi instance = VendorApi._();
@@ -281,7 +291,7 @@ class VendorApi {
         'gallery': gallery.map((g) => base64Encode(g)).toList(),
     };
     final j = _need(await _post('/api/vendor/v1/products/create', body));
-    return (j['data'] as Map)['id'] as int;
+    return _ai((j['data'] as Map)['id']);
   }
   Future<List<Map<String, dynamic>>> categories() async {
     final j = _need(await _get('/api/vendor/v1/categories'));
@@ -552,7 +562,7 @@ class Money {
       amount: ((j['amount'] ?? 0) as num).toDouble(),
       currency: (j['currency'] ?? 'KWD').toString(),
       symbol: (j['symbol'] ?? 'KD').toString(),
-      digits: (j['digits'] ?? 3) as int,
+      digits: _ai(j['digits'], 3),
     );
   }
   String format([String? lang]) {
@@ -582,7 +592,7 @@ class Vendor {
       required this.avgRating, required this.totalSales,
       required this.followerCount, required this.orderCount});
   factory Vendor.fromJson(Map<String, dynamic> j) => Vendor(
-    id: (j['id'] ?? 0) as int,
+    id: _ai(j['id']),
     storeName: BL.fromJson(j['store_name']),
     tagline: BL.fromJson(j['tagline']),
     slug: (j['slug'] ?? '').toString(),
@@ -602,8 +612,8 @@ class Vendor {
     walletBalance: ((j['wallet_balance'] ?? 0) as num).toDouble(),
     avgRating: ((j['avg_rating'] ?? 0) as num).toDouble(),
     totalSales: ((j['total_sales'] ?? 0) as num).toDouble(),
-    followerCount: (j['follower_count'] ?? 0) as int,
-    orderCount: (j['order_count'] ?? 0) as int,
+    followerCount: _ai(j['follower_count']),
+    orderCount: _ai(j['order_count']),
   );
   Map<String, dynamic> toJson() => {
     'id': id, 'store_name': storeName.toJson(), 'tagline': tagline.toJson(),
@@ -647,19 +657,19 @@ class Dashboard {
       revWeek: Money.fromJson((rev['week'] as Map?)?.cast<String, dynamic>()),
       revMonth: Money.fromJson((rev['month'] as Map?)?.cast<String, dynamic>()),
       revTotal: Money.fromJson((rev['total'] as Map?)?.cast<String, dynamic>()),
-      ordersPending: (ord['pending'] ?? 0) as int,
-      ordersNew: (ord['new'] ?? 0) as int,
-      ordersConfirmed: (ord['confirmed'] ?? 0) as int,
-      ordersCompleted: (ord['completed'] ?? 0) as int,
-      ordersCancelled: (ord['cancelled'] ?? 0) as int,
-      productsActive: (pro['active'] ?? 0) as int,
-      productsPendingApproval: (pro['pending_approval'] ?? 0) as int,
-      productsLowStock: (pro['low_stock'] ?? 0) as int,
+      ordersPending: _ai(ord['pending']),
+      ordersNew: _ai(ord['new']),
+      ordersConfirmed: _ai(ord['confirmed']),
+      ordersCompleted: _ai(ord['completed']),
+      ordersCancelled: _ai(ord['cancelled']),
+      productsActive: _ai(pro['active']),
+      productsPendingApproval: _ai(pro['pending_approval']),
+      productsLowStock: _ai(pro['low_stock']),
       walletBalance: Money.fromJson((j['wallet_balance'] as Map?)?.cast<String, dynamic>()),
       avgRating: ((j['avg_rating'] ?? 0) as num).toDouble(),
-      followerCount: (j['follower_count'] ?? 0) as int,
+      followerCount: _ai(j['follower_count']),
       tier: (j['tier'] ?? 'bronze').toString(),
-      score: (j['score'] ?? 0) as int,
+      score: _ai(j['score']),
       scoreBand: (j['score_band'] ?? 'fair').toString(),
       recentOrders: ((j['recent_orders'] as List?) ?? const [])
         .map((e) => RecentOrder.fromJson((e as Map).cast<String, dynamic>())).toList(),
@@ -675,7 +685,7 @@ class RecentOrder {
   const RecentOrder({required this.id, required this.name, required this.customer,
       required this.state, required this.when, required this.amount});
   factory RecentOrder.fromJson(Map<String, dynamic> j) => RecentOrder(
-    id: (j['id'] ?? 0) as int,
+    id: _ai(j['id']),
     name: (j['name'] ?? '').toString(),
     customer: (j['customer'] ?? '').toString(),
     state: (j['state'] ?? '').toString(),
@@ -697,14 +707,14 @@ class OrderSummary {
       required this.amount, required this.itemCount, required this.customer,
       this.slaState = '', this.fulfillDue = ''});
   factory OrderSummary.fromJson(Map<String, dynamic> j) => OrderSummary(
-    id: (j['id'] ?? 0) as int,
+    id: _ai(j['id']),
     name: (j['name'] ?? '').toString(),
     state: (j['state'] ?? '').toString(),
     when: (j['when'] ?? '').toString(),
     invoiceStatus: (j['invoice_status'] ?? '').toString(),
     stateLabel: BL.fromJson(j['state_label']),
     amount: Money.fromJson((j['amount'] as Map?)?.cast<String, dynamic>()),
-    itemCount: (j['item_count'] ?? 0) as int,
+    itemCount: _ai(j['item_count']),
     customer: (j['customer'] as Map?)?.cast<String, dynamic>() ?? const {},
     slaState: (j['sla_state'] ?? '').toString(),
     fulfillDue: (j['fulfill_due'] ?? '').toString(),
@@ -731,9 +741,9 @@ class OrderHub {
     final s = (j['sla'] as Map?)?.cast<String, dynamic>() ?? const {};
     return OrderHub(
       buckets: parse(),
-      counts: c.map((k, v) => MapEntry(k, (v ?? 0) as int)),
-      overdue: (s['overdue'] ?? 0) as int,
-      dueSoon: (s['due_soon'] ?? 0) as int,
+      counts: c.map((k, v) => MapEntry(k, _ai(v))),
+      overdue: _ai(s['overdue']),
+      dueSoon: _ai(s['due_soon']),
     );
   }
 }
@@ -773,8 +783,8 @@ class OrderItem {
   const OrderItem({required this.id, required this.productId, required this.name,
       required this.qty, required this.price, required this.subtotal, required this.imageUrl});
   factory OrderItem.fromJson(Map<String, dynamic> j) => OrderItem(
-    id: (j['id'] ?? 0) as int,
-    productId: (j['product_id'] ?? 0) as int,
+    id: _ai(j['id']),
+    productId: _ai(j['product_id']),
     name: BL.fromJson(j['name']),
     qty: ((j['qty'] ?? 0) as num).toDouble(),
     price: Money.fromJson((j['price'] as Map?)?.cast<String, dynamic>()),
@@ -791,7 +801,7 @@ class ChatMsg {
   const ChatMsg({required this.id, required this.body, required this.when,
       required this.isSelf, required this.author});
   factory ChatMsg.fromJson(Map<String, dynamic> j) => ChatMsg(
-    id: (j['id'] ?? 0) as int,
+    id: _ai(j['id']),
     body: (j['body'] ?? '').toString(),
     when: (j['when'] ?? '').toString(),
     isSelf: (j['is_self'] ?? false) as bool,
@@ -815,7 +825,7 @@ class ProductSummary {
       required this.approvalState, required this.rejectionReason, this.imageUrl,
       this.active = true, this.underReview = false});
   factory ProductSummary.fromJson(Map<String, dynamic> j) => ProductSummary(
-    id: (j['id'] ?? 0) as int,
+    id: _ai(j['id']),
     name: BL.fromJson(j['name']),
     listPrice: Money.fromJson((j['list_price'] as Map?)?.cast<String, dynamic>()),
     standardPrice: Money.fromJson((j['standard_price'] as Map?)?.cast<String, dynamic>()),
@@ -866,7 +876,7 @@ class ProductDetail extends ProductSummary {
       pendingChange: (j['pending_change'] ?? '').toString(),
       nameAr: (j['name_ar'] ?? '').toString(),
       nameEn: (j['name_en'] ?? '').toString(),
-      categoryId: ((j['category'] as Map?)?['id'] ?? 0) as int,
+      categoryId: _ai((j['category'] as Map?)?['id']),
       categoryName: (((j['category'] as Map?)?['name'] as Map?)?['en'] ?? '').toString(),
       gallery: ((j['gallery'] as List?) ?? const []).map((e) => e.toString()).toList(),
     );
@@ -881,7 +891,7 @@ class Review {
   const Review({required this.id, required this.rating, required this.comment,
       required this.reply, required this.when, this.author, this.product});
   factory Review.fromJson(Map<String, dynamic> j) => Review(
-    id: (j['id'] ?? 0) as int,
+    id: _ai(j['id']),
     rating: ((j['rating'] ?? 0) as num).toDouble(),
     comment: (j['comment'] ?? '').toString(),
     reply: (j['reply'] ?? '').toString(),
@@ -910,7 +920,7 @@ class WalletTx {
   const WalletTx({required this.id, required this.amount, required this.type,
       required this.state, required this.description, required this.when});
   factory WalletTx.fromJson(Map<String, dynamic> j) => WalletTx(
-    id: (j['id'] ?? 0) as int,
+    id: _ai(j['id']),
     amount: Money.fromJson((j['amount'] as Map?)?.cast<String, dynamic>()),
     type: (j['type'] ?? '').toString(),
     state: (j['state'] ?? '').toString(),
@@ -930,13 +940,13 @@ class PayoutSummary {
       required this.when, required this.stateLabel, required this.amount,
       required this.lineCount, this.payoutDate, this.bankIban});
   factory PayoutSummary.fromJson(Map<String, dynamic> j) => PayoutSummary(
-    id: (j['id'] ?? 0) as int,
+    id: _ai(j['id']),
     name: (j['name'] ?? '').toString(),
     state: (j['state'] ?? '').toString(),
     when: (j['when'] ?? '').toString(),
     stateLabel: BL.fromJson(j['state_label']),
     amount: Money.fromJson((j['amount'] as Map?)?.cast<String, dynamic>()),
-    lineCount: (j['line_count'] ?? 0) as int,
+    lineCount: _ai(j['line_count']),
     payoutDate: j['payout_date'] as String?,
     bankIban: j['bank_iban'] as String?,
   );
@@ -970,8 +980,8 @@ class Commission {
       required this.commissionAmount, required this.netAmount,
       required this.commissionRate, this.releaseDate});
   factory Commission.fromJson(Map<String, dynamic> j) => Commission(
-    id: (j['id'] ?? 0) as int,
-    orderId: (j['order_id'] ?? 0) as int,
+    id: _ai(j['id']),
+    orderId: _ai(j['order_id']),
     orderName: (j['order_name'] ?? '').toString(),
     orderDate: (j['order_date'] ?? '').toString(),
     state: (j['state'] ?? '').toString(),
@@ -992,7 +1002,7 @@ class SalesTimeseries {
     days: ((j['days'] as List?) ?? const [])
       .map((e) => SalesDay.fromJson((e as Map).cast<String, dynamic>())).toList(),
     totalRevenue: ((j['total_revenue'] ?? 0) as num).toDouble(),
-    totalOrders: (j['total_orders'] ?? 0) as int,
+    totalOrders: _ai(j['total_orders']),
   );
 }
 
@@ -1004,7 +1014,7 @@ class SalesDay {
   factory SalesDay.fromJson(Map<String, dynamic> j) => SalesDay(
     date: (j['date'] ?? '').toString(),
     revenue: ((j['revenue'] ?? 0) as num).toDouble(),
-    orders: (j['orders'] ?? 0) as int,
+    orders: _ai(j['orders']),
   );
 }
 
@@ -1017,7 +1027,7 @@ class TopProduct {
   const TopProduct({required this.id, required this.name, required this.revenue,
       required this.qty, this.imageUrl});
   factory TopProduct.fromJson(Map<String, dynamic> j) => TopProduct(
-    id: (j['id'] ?? 0) as int,
+    id: _ai(j['id']),
     name: BL.fromJson(j['name']),
     revenue: Money.fromJson((j['revenue'] as Map?)?.cast<String, dynamic>()),
     qty: ((j['qty'] ?? 0) as num).toDouble(),
@@ -1034,10 +1044,10 @@ class TopCustomer {
   const TopCustomer({required this.id, required this.name, required this.spent,
       required this.orders, this.avatarUrl});
   factory TopCustomer.fromJson(Map<String, dynamic> j) => TopCustomer(
-    id: (j['id'] ?? 0) as int,
+    id: _ai(j['id']),
     name: (j['name'] ?? '').toString(),
     spent: Money.fromJson((j['spent'] as Map?)?.cast<String, dynamic>()),
-    orders: (j['orders'] ?? 0) as int,
+    orders: _ai(j['orders']),
     avatarUrl: j['avatar_url'] as String?,
   );
 }

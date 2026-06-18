@@ -4,6 +4,7 @@ import '../theme/theme.dart';
 import 'dashboard_tab.dart';
 import 'orders_tab.dart';
 import 'products_tab.dart';
+import 'shop_tab.dart';
 import 'finance_tab.dart';
 import 'me_tab.dart';
 
@@ -19,7 +20,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _pages = const [DashboardTab(), OrdersTab(), ProductsTab(), FinanceTab(), MeTab()];
+    _pages = const [DashboardTab(), OrdersTab(), ProductsTab(), ShopTab(), FinanceTab(), MeTab()];
   }
   @override
   Widget build(BuildContext context) {
@@ -35,8 +36,9 @@ class _HomeScreenState extends State<HomeScreen> {
             _btn(0, Icons.dashboard_outlined, ar ? 'الرئيسية' : 'Home'),
             _btn(1, Icons.inventory_2_outlined, ar ? 'الطلبات' : 'Orders'),
             _btn(2, Icons.shopping_bag_outlined, ar ? 'المنتجات' : 'Products'),
-            _btn(3, Icons.account_balance_wallet_outlined, ar ? 'المالية' : 'Finance'),
-            _btn(4, Icons.storefront_outlined, ar ? 'متجري' : 'Me'),
+            _btn(3, Icons.storefront_outlined, ar ? 'المتجر' : 'Shop'),
+            _btn(4, Icons.account_balance_wallet_outlined, ar ? 'المالية' : 'Finance'),
+            _btn(5, Icons.grid_view_outlined, ar ? 'المزيد' : 'Me'),
           ]))),
       ),
     );
@@ -45,10 +47,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final on = _tab == idx;
     return Expanded(child: InkWell(onTap: () => setState(() => _tab = idx),
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(icon, color: on ? UC.brown : UC.muted, size: 22),
+        Icon(icon, color: on ? UC.brown : UC.muted, size: 21),
         const SizedBox(height: 3),
-        Text(label, style: TextStyle(color: on ? UC.brown : UC.muted,
-          fontSize: 10, fontWeight: FontWeight.w800)),
+        Text(label, maxLines: 1, overflow: TextOverflow.visible,
+          style: TextStyle(color: on ? UC.brown : UC.muted,
+          fontSize: 9, fontWeight: FontWeight.w800)),
       ])));
   }
 }

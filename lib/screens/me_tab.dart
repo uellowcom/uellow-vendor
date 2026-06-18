@@ -1,175 +1,187 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../api/api.dart';
 import '../theme/theme.dart';
 
-class MeTab extends StatelessWidget {
+/// A single grid entry. [show] lets us hide entries by vendor type / role.
+class _Item {
+  final IconData icon;
+  final String en, ar, route;
+  final Color color;
+  final bool Function()? show;
+  const _Item(this.icon, this.en, this.ar, this.route, this.color, {this.show});
+}
+
+class MeTab extends StatefulWidget {
   const MeTab({super.key});
+  @override
+  State<MeTab> createState() => _MeTabState();
+}
+
+class _MeTabState extends State<MeTab> {
+  Future<Dashboard>? _f;
+  @override
+  void initState() {
+    super.initState();
+    _f = VendorApi.instance.dashboard();
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _f = VendorApi.instance.dashboard());
+    await _f;
+  }
+
+  bool get _isFbuOrConsign =>
+      VendorApi.instance.vendorType == 'fbu' ||
+      VendorApi.instance.vendorType == 'consignment';
+
+  List<_Item> _items(bool ar) => [
+        _Item(Icons.local_shipping_outlined, 'Order hub', 'مركز الطلبات', '/order-hub', UC.info),
+        _Item(Icons.bolt_outlined, 'Promotions', 'العروض الداخلية', '/flash', UC.warn),
+        _Item(Icons.local_offer_outlined, 'Campaigns', 'الحملات', '/promotions', UC.success),
+        _Item(Icons.videocam_outlined, 'Videos', 'فيديوهات', '/videos', const Color(0xFFEC4899)),
+        _Item(Icons.qr_code_scanner, 'Scan', 'مسح باركود', '/scan', UC.brown),
+        _Item(Icons.point_of_sale_outlined, 'Quick sale', 'بيع سريع', '/quick-sale', const Color(0xFF6366F1)),
+        _Item(Icons.campaign_outlined, 'Sponsor', 'إعلانات ممولة', '/ads', const Color(0xFFF97316)),
+        _Item(Icons.report_problem_outlined, 'Order issues', 'مشاكل الطلبات', '/disputes', UC.danger),
+        _Item(Icons.inventory_2_outlined, 'Stock', 'المخزون', '/stock', UC.successDk),
+        _Item(Icons.refresh, 'Restock', 'طلبات التعبئة', '/restock', const Color(0xFF0EA5E9)),
+        _Item(Icons.upload_file_outlined, 'Bulk import', 'استيراد جماعي', '/import', const Color(0xFF8B5CF6)),
+        _Item(Icons.assignment_return_outlined, 'Stock returns', 'استرجاع بضاعة', '/returns', const Color(0xFFD97706),
+            show: () => _isFbuOrConsign),
+        _Item(Icons.sell_outlined, 'Price requests', 'طلبات الأسعار', '/price-requests', const Color(0xFF14B8A6)),
+        _Item(Icons.palette_outlined, 'Store style', 'تصميم المتجر', '/style', const Color(0xFFA855F7)),
+        _Item(Icons.reviews_outlined, 'Reviews', 'التقييمات', '/reviews', UC.warn),
+        _Item(Icons.bar_chart, 'Analytics', 'التحليلات', '/analytics', UC.info),
+        _Item(Icons.table_view_outlined, 'Reports', 'التقارير', '/reports', UC.brownSoft),
+        _Item(Icons.person_outline, 'Profile', 'ملف التاجر', '/profile', UC.muted),
+        _Item(Icons.code, 'Developer', 'المطورون / API', '/developer', const Color(0xFF475569)),
+        _Item(Icons.settings_outlined, 'Settings', 'الإعدادات', '/settings', UC.brown),
+        _Item(Icons.shield_outlined, 'Admin', 'وضع الأدمن', '/admin', UC.dangerDk,
+            show: () => VendorApi.instance.isAdmin),
+      ];
+
   @override
   Widget build(BuildContext context) {
     final ar = VendorApi.instance.lang == 'ar';
     final lang = ar ? 'ar' : 'en';
     final v = VendorApi.instance.vendor;
+    final items = _items(ar).where((i) => i.show?.call() ?? true).toList();
     return Scaffold(
-      appBar: AppBar(title: Text(ar ? 'متجري' : 'My store')),
-      body: ListView(padding: EdgeInsets.zero, children: [
-        // Banner + logo overlap
-        Stack(clipBehavior: Clip.none, children: [
-          SizedBox(height: 130, child: v?.bannerUrl != null
-            ? CachedNetworkImage(
-                imageUrl: '${VendorApi.instance.baseUrl}${v!.bannerUrl!}',
-                width: double.infinity, fit: BoxFit.cover,
-                errorWidget: (_,__,___) => Container(color: UC.yellow))
-            : Container(color: UC.yellow)),
-          Positioned(left: 14, bottom: -30, child: Container(width: 76, height: 76,
-            decoration: BoxDecoration(color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: const [BoxShadow(color: Color(0x33000000),
-                blurRadius: 10, offset: Offset(0, 4))]),
-            child: ClipRRect(borderRadius: BorderRadius.circular(18),
-              child: v?.logoUrl != null
-                ? CachedNetworkImage(
-                    imageUrl: '${VendorApi.instance.baseUrl}${v!.logoUrl!}',
-                    fit: BoxFit.cover,
-                    errorWidget: (_,__,___) => _logoFallback(v.storeName.t(lang)))
-                : _logoFallback(v?.storeName.t(lang) ?? 'V')))),
-        ]),
-        const SizedBox(height: 40),
-        Padding(padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(v?.storeName.t(lang) ?? '', style: UT.h1),
-            Text(v?.tagline.t(lang) ?? '', style: UT.body),
-            const SizedBox(height: 10),
-            Row(children: [
-              UPill(text: '⭐ ${(v?.avgRating ?? 0).toStringAsFixed(2)}',
-                bg: UC.warnBg, fg: const Color(0xFF92400E)),
-              const SizedBox(width: 6),
-              UPill(text: '${v?.followerCount ?? 0} ${ar ? "متابع" : "followers"}'),
-              const SizedBox(width: 6),
-              UPill(text: (v?.tier ?? '').toUpperCase(),
-                bg: UC.yellowFaint, fg: UC.brown),
-              const SizedBox(width: 6),
-              UPill(text: _vendorTypeLabel(VendorApi.instance.vendorType, ar),
-                bg: UC.brown, fg: UC.yellow),
-            ]),
-          ])),
-        const SizedBox(height: 14),
-        _row(context, Icons.local_shipping_outlined,
-          ar ? 'مركز الطلبات' : 'Order hub',
-          ar ? 'طلبات للتأكيد/الشحن + مؤشر SLA + إجراءات جماعية' : 'Fulfillment buckets + SLA + bulk actions', '/order-hub'),
-        _row(context, Icons.bolt_outlined,
-          ar ? 'العروض الداخلية' : 'Internal Promotion',
-          ar ? 'إنشاء وإدارة عروضك المؤقتة' : 'Create & manage timed offers', '/flash'),
-        _row(context, Icons.local_offer_outlined,
-          ar ? 'الحملات الترويجية' : 'Promotions',
-          ar ? 'حملات السوق المتاحة + مشاركاتك' : 'Open campaigns + your entries', '/promotions'),
-        _row(context, Icons.videocam_outlined,
-          ar ? 'فيديوهات المنتجات' : 'Shoppable videos',
-          ar ? 'ارفع مقاطع تسويقية لمنتجاتك' : 'Upload promo clips for your products', '/videos'),
-        _row(context, Icons.qr_code_scanner,
-          ar ? 'مسح الباركود' : 'Scan barcode',
-          ar ? 'ابحث وحدّث المخزون بالمسح' : 'Look up & update stock by scan', '/scan'),
-        _row(context, Icons.point_of_sale_outlined,
-          ar ? 'بيع سريع' : 'Quick sale',
-          ar ? 'سجّل بيعاً مباشراً من منتجاتك' : 'Record a counter sale', '/quick-sale'),
-        _row(context, Icons.campaign_outlined,
-          ar ? 'الإعلانات المموّلة' : 'Sponsored listings',
-          ar ? 'ادفع لإبراز منتجاتك' : 'Pay to boost your products', '/ads'),
-        _row(context, Icons.report_problem_outlined,
-          ar ? 'مشاكل الطلبات' : 'Order issues',
-          ar ? 'أبلغ يلو عن مشكلة في طلب' : 'Flag an order problem to Uellow', '/disputes'),
-        _row(context, Icons.inventory_2_outlined,
-          ar ? 'المخزون' : 'Stock',
-          ar ? 'الكميات + طلب تعبئة' : 'Quantities + request restock', '/stock'),
-        _row(context, Icons.refresh,
-          ar ? 'طلبات التعبئة' : 'Restock requests',
-          ar ? 'متابعة طلبات التعبئة' : 'Track your restock requests', '/restock'),
-        _row(context, Icons.upload_file_outlined,
-          ar ? 'استيراد جماعي' : 'Bulk import',
-          ar ? 'رفع منتجات دفعة واحدة (CSV)' : 'Add many products at once (CSV)', '/import'),
-        if (VendorApi.instance.vendorType == 'fbu' || VendorApi.instance.vendorType == 'consignment')
-          _row(context, Icons.assignment_return_outlined,
-            ar ? 'استرجاع البضاعة' : 'Stock returns',
-            ar ? 'سحب منتجاتك من مخازن يلو' : 'Withdraw goods from Uellow', '/returns'),
-        _row(context, Icons.sell_outlined,
-          ar ? 'طلبات الأسعار' : 'Price requests',
-          ar ? 'أكّد أو اقترح أسعارك' : 'Confirm or propose your prices', '/price-requests'),
-        _row(context, Icons.palette_outlined,
-          ar ? 'تصميم المتجر' : 'Store style',
-          ar ? 'ألوان واجهة متجرك' : 'Your storefront colors', '/style'),
-        _row(context, Icons.reviews_outlined,
-          ar ? 'تقييمات العملاء' : 'Customer reviews',
-          ar ? 'كل التقييمات + الرد عليها' : 'All reviews + reply', '/reviews'),
-        _row(context, Icons.settings_outlined,
-          ar ? 'الإعدادات' : 'Settings',
-          ar ? 'بيانات المتجر + اللغة + الإشعارات' : 'Store info + language + notifications',
-          '/settings'),
-        _row(context, Icons.person_outline,
-          ar ? 'ملف التاجر' : 'Vendor profile',
-          ar ? 'البيانات التجارية + IBAN' : 'Business info + IBAN', '/profile'),
-        _row(context, Icons.bar_chart,
-          ar ? 'التحليلات' : 'Analytics',
-          ar ? 'المبيعات + أعلى المنتجات' : 'Sales + top products', '/analytics'),
-        _row(context, Icons.table_view_outlined,
-          ar ? 'التقارير' : 'Reports',
-          ar ? 'تصدير Excel للطلبات والمنتجات' : 'Excel exports', '/reports'),
-        _row(context, Icons.code,
-          ar ? 'المطورون / API' : 'Developer / API',
-          ar ? 'مفاتيح API و Webhooks للتكامل' : 'API keys & webhooks for integrations', '/developer'),
-        if (VendorApi.instance.isAdmin)
-          _row(context, Icons.shield_outlined,
-            ar ? '🛡️ وضع الأدمن' : '🛡️ Admin mode',
-            ar ? 'كل الطلبات + التُّجار + الاعتمادات' : 'All orders + vendors + approvals', '/admin'),
-        Padding(padding: const EdgeInsets.all(14),
-          child: OutlinedButton.icon(
+      appBar: AppBar(
+        title: Text(v?.storeName.t(lang) ?? (ar ? 'متجري' : 'My store'),
+            style: const TextStyle(fontWeight: FontWeight.w900)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: UC.dangerDk),
+            tooltip: ar ? 'تسجيل الخروج' : 'Sign out',
             onPressed: () async {
               await VendorApi.instance.logout();
               if (context.mounted) {
                 Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
               }
             },
-            icon: const Icon(Icons.logout, size: 18, color: UC.dangerDk),
-            label: Text(ar ? 'تسجيل الخروج' : 'Sign out',
-              style: const TextStyle(color: UC.dangerDk, fontWeight: FontWeight.w900)),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: UC.dangerBg, width: 1.5),
-              minimumSize: const Size(double.infinity, 50)))),
-        const SizedBox(height: 24),
-      ]),
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _refresh,
+        child: ListView(padding: const EdgeInsets.fromLTRB(14, 14, 14, 28), children: [
+          // ── Stats strip (wallet / products / orders) ──
+          FutureBuilder<Dashboard>(
+            future: _f,
+            builder: (_, snap) {
+              final d = snap.data;
+              final wallet = d?.walletBalance.format(lang) ??
+                  (v != null ? Money(amount: v.walletBalance, currency: v.currency,
+                      symbol: v.currencySymbol, digits: 3).format(lang) : '—');
+              final products = d != null ? '${d.productsActive}' : '—';
+              final orders = d != null
+                  ? '${d.ordersNew + d.ordersConfirmed + d.ordersCompleted}'
+                  : '${v?.orderCount ?? 0}';
+              return Row(children: [
+                _stat(ar ? 'المحفظة' : 'Wallet', wallet, Icons.account_balance_wallet,
+                    UC.brown, UC.yellowFaint, onTap: () => Navigator.pushNamed(context, '/wallet')),
+                const SizedBox(width: 8),
+                _stat(ar ? 'المنتجات' : 'Products', products, Icons.shopping_bag,
+                    UC.successDk, UC.successBg),
+                const SizedBox(width: 8),
+                _stat(ar ? 'الطلبات' : 'Orders', orders, Icons.receipt_long,
+                    UC.info, UC.infoBg, onTap: () => Navigator.pushNamed(context, '/order-hub')),
+              ]);
+            },
+          ),
+          const SizedBox(height: 18),
+          Text(ar ? 'الأقسام' : 'Sections', style: UT.h3),
+          const SizedBox(height: 10),
+          // ── Big-icon grid ──
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: items.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3, mainAxisSpacing: 10, crossAxisSpacing: 10,
+              childAspectRatio: .92),
+            itemBuilder: (c, i) => _gridTile(items[i], ar),
+          ),
+        ]),
+      ),
     );
   }
 
-  String _vendorTypeLabel(String t, bool ar) {
-    switch (t) {
-      case 'fbu': return ar ? '🏬 FBU' : '🏬 FBU';
-      case 'dropshipper': return ar ? '🚚 دروب شيبر' : '🚚 Dropshipper';
-      case 'hybrid': return ar ? '🔀 مختلط' : '🔀 Hybrid';
-      case 'consignment': return ar ? '📦 أمانة' : '📦 Consignment';
-      default: return ar ? '🧰 بائع' : '🧰 Seller';
-    }
+  Widget _stat(String label, String value, IconData ic, Color fg, Color bg,
+      {VoidCallback? onTap}) {
+    return Expanded(
+      child: Material(
+        color: bg,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Icon(ic, color: fg, size: 18),
+              const SizedBox(height: 8),
+              Text(value,
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: fg, fontSize: 15, fontWeight: FontWeight.w900)),
+              Text(label,
+                  style: TextStyle(color: fg.withValues(alpha: .75), fontSize: 10.5,
+                      fontWeight: FontWeight.w700)),
+            ]),
+          ),
+        ),
+      ),
+    );
   }
 
-  Widget _logoFallback(String name) => Container(color: UC.yellow,
-    alignment: Alignment.center,
-    child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'U',
-      style: const TextStyle(color: UC.brown, fontSize: 28, fontWeight: FontWeight.w900)));
-
-  Widget _row(BuildContext c, IconData ic, String title, String sub, String route) =>
-    Material(color: Colors.white,
-      child: InkWell(onTap: () => Navigator.pushNamed(c, route),
-        child: Container(padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-          decoration: const BoxDecoration(
-            border: Border(bottom: BorderSide(color: UC.bg))),
-          child: Row(children: [
-            Container(width: 36, height: 36, alignment: Alignment.center,
-              decoration: BoxDecoration(color: UC.yellowFaint,
-                borderRadius: BorderRadius.circular(11)),
-              child: Icon(ic, color: UC.brown, size: 17)),
-            const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
-              Text(sub, style: UT.small, maxLines: 1, overflow: TextOverflow.ellipsis),
-            ])),
-            const Icon(Icons.chevron_right, color: UC.muted),
-          ]))));
+  Widget _gridTile(_Item it, bool ar) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => Navigator.pushNamed(context, it.route),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: UC.border)),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Container(
+              width: 50, height: 50, alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: it.color.withValues(alpha: .12),
+                borderRadius: BorderRadius.circular(15)),
+              child: Icon(it.icon, color: it.color, size: 26),
+            ),
+            const SizedBox(height: 9),
+            Text(ar ? it.ar : it.en,
+                textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: UC.ink)),
+          ]),
+        ),
+      ),
+    );
+  }
 }

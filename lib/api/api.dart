@@ -305,6 +305,38 @@ class VendorApi {
     return (j['data'] as Map).cast<String, dynamic>();
   }
 
+  // ── Live commerce / shoppable video (Bunny) ─────────────────
+  Future<List<Map<String, dynamic>>> videos() async {
+    final j = _need(await _get('/api/vendor/v1/videos'));
+    return ((j['data'] as List).cast<Map>()).map((m) => m.cast<String, dynamic>()).toList();
+  }
+  Future<Map<String, dynamic>> videoCreate(int productId, String title, String videoBase64, String filename) async {
+    final j = _need(await _post('/api/vendor/v1/videos/create',
+        {'product_id': productId, 'title': title, 'video_base64': videoBase64, 'filename': filename}));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+  Future<void> videoDelete(int id) async {
+    _need(await _post('/api/vendor/v1/videos/$id/delete'));
+  }
+
+  // ── Barcode lookup ──────────────────────────────────────────
+  /// Resolve a scanned barcode/SKU to one of the vendor's products (ProductDetail).
+  Future<ProductDetail?> productByBarcode(String barcode) async {
+    final r = await _get('/api/vendor/v1/products/by-barcode', query: {'barcode': barcode});
+    if (r['success'] != true) return null;
+    return ProductDetail.fromJson(((r['data'] as Map)['product'] as Map).cast<String, dynamic>());
+  }
+
+  // ── Quick / counter sale ────────────────────────────────────
+  Future<Map<String, dynamic>> quickSale(List<Map<String, dynamic>> lines, {String? customerName, String? customerPhone}) async {
+    final j = _need(await _post('/api/vendor/v1/quicksale', {
+      'lines': lines,
+      if (customerName != null) 'customer_name': customerName,
+      if (customerPhone != null) 'customer_phone': customerPhone,
+    }));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+
   // ── Sponsored listings (Ads) ────────────────────────────────
   /// {campaigns:[...], daily_rate, wallet_balance}
   Future<Map<String, dynamic>> ads() async {

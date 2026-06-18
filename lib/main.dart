@@ -34,6 +34,9 @@ import 'screens/developer_screen.dart';
 import 'screens/order_hub_screen.dart';
 import 'screens/ads_screen.dart';
 import 'screens/disputes_screen.dart';
+import 'screens/videos_screen.dart';
+import 'screens/scan_screen.dart';
+import 'screens/quick_sale_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -91,6 +94,9 @@ class VendorApp extends StatelessWidget {
             '/order-hub':   (_) => const OrderHubScreen(),
             '/ads':         (_) => const AdsScreen(),
             '/disputes':    (_) => const DisputesScreen(),
+            '/videos':      (_) => const VideosScreen(),
+            '/scan':        (_) => const ScanScreen(),
+            '/quick-sale':  (_) => const QuickSaleScreen(),
           },
           onGenerateRoute: (settings) {
             final args = (settings.arguments as Map?) ?? const {};

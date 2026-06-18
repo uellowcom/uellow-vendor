@@ -268,6 +268,25 @@ class _DeveloperScreenState extends State<DeveloperScreen> {
                           Text(_ar ? 'المصادقة: ترويسة  X-API-Key' : 'Auth: header  X-API-Key', style: UT.small),
                         ]),
                       ),
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: UC.card,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: UC.border),
+                        ),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(_ar ? 'تغذية الكتالوج (Google / Meta)' : 'Catalog feed (Google / Meta)', style: UT.tiny),
+                          const SizedBox(height: 4),
+                          SelectableText('${_meta['base_url']}/feed.xml?key=YOUR_API_KEY',
+                              style: const TextStyle(fontFamily: 'monospace', fontSize: 11, color: UC.brown)),
+                          SelectableText('${_meta['base_url']}/feed.csv?key=YOUR_API_KEY',
+                              style: const TextStyle(fontFamily: 'monospace', fontSize: 11, color: UC.brown)),
+                          const SizedBox(height: 4),
+                          Text(_ar ? 'استبدل YOUR_API_KEY بمفتاحك بالأسفل.' : 'Replace YOUR_API_KEY with a key below.', style: UT.small),
+                        ]),
+                      ),
                       const SizedBox(height: 14),
                     ],
                     // ── API keys ──

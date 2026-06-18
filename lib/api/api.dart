@@ -305,6 +305,33 @@ class VendorApi {
     return (j['data'] as Map).cast<String, dynamic>();
   }
 
+  // ── Sponsored listings (Ads) ────────────────────────────────
+  /// {campaigns:[...], daily_rate, wallet_balance}
+  Future<Map<String, dynamic>> ads() async {
+    final j = _need(await _get('/api/vendor/v1/ads'));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+  Future<Map<String, dynamic>> adCreate(int productId, String start, String end, {String? name}) async {
+    final j = _need(await _post('/api/vendor/v1/ads/create',
+        {'product_id': productId, 'start': start, 'end': end, if (name != null) 'name': name}));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+  Future<void> adCancel(int id) async {
+    _need(await _post('/api/vendor/v1/ads/$id/cancel'));
+  }
+
+  // ── Order disputes / issues ─────────────────────────────────
+  /// {disputes:[...], reasons:[{code,en,ar}]}
+  Future<Map<String, dynamic>> disputes() async {
+    final j = _need(await _get('/api/vendor/v1/disputes'));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+  Future<Map<String, dynamic>> disputeCreate(int orderId, String reason, String description) async {
+    final j = _need(await _post('/api/vendor/v1/disputes/create',
+        {'order_id': orderId, 'reason': reason, 'description': description}));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+
   // ── Developer / Open API ────────────────────────────────────
   Future<Map<String, dynamic>> devMeta() async {
     final j = _need(await _get('/api/vendor/v1/dev/meta'));

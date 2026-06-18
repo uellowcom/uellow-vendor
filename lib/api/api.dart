@@ -288,6 +288,11 @@ class VendorApi {
   Future<void> productRestore(int id) async {
     _need(await _post('/api/vendor/v1/products/$id/restore'));
   }
+  /// Bulk-create products from CSV text. Returns {created, errors, error_count}.
+  Future<Map<String, dynamic>> productsImport(String csv) async {
+    final j = _need(await _post('/api/vendor/v1/products/import', {'csv': csv}));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
 
   // Reviews
   Future<List<Review>> reviews({int page = 1}) async {

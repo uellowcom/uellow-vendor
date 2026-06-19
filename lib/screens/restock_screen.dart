@@ -158,9 +158,15 @@ class _RestockDetailScreenState extends State<RestockDetailScreen> {
                   _kv(ar ? 'إجمالي أمر الشراء' : 'PO total',
                     '${(r['po_total'] as Map)['amount']} ${(r['po_total'] as Map)['symbol']}', bold: true),
               ])),
-            const SizedBox(height: 12),
-            Text(ar ? 'الأصناف' : 'Items', style: UT.h3),
-            const SizedBox(height: 6),
+            const SizedBox(height: 16),
+            Row(children: [
+              const Icon(Icons.inventory_2_outlined, size: 16, color: UC.brown),
+              const SizedBox(width: 6),
+              Text(ar ? 'الأصناف' : 'Items', style: UT.h3),
+              const Spacer(),
+              if (lines.isNotEmpty) Text('${lines.length}', style: UT.tiny),
+            ]),
+            const SizedBox(height: 8),
             for (final l in lines) Container(margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(11),
               decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: UC.border)),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -187,19 +193,14 @@ class _RestockDetailScreenState extends State<RestockDetailScreen> {
                   : 'Your goods were received, inspected and booked into stock via the PO — documents below.',
                   style: const TextStyle(color: UC.successDk, fontWeight: FontWeight.w600, fontSize: 12))),
               ])),
-            const SizedBox(height: 16),
-            Text(ar ? 'السجل' : 'Timeline', style: UT.h3),
-            const SizedBox(height: 8),
-            for (final m in ((r['timeline'] as List?) ?? const []))
-              Padding(padding: const EdgeInsets.only(bottom: 8),
-                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Padding(padding: EdgeInsets.only(top: 4), child: Icon(Icons.circle, size: 8, color: UC.brown)),
-                  const SizedBox(width: 8),
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text((m as Map)['body'].toString().replaceAll(RegExp(r'<[^>]*>'), ' ').trim(), style: UT.body),
-                    Text('${m['author']} · ${(m['when'] ?? '').toString().split('T').first}', style: UT.tiny),
-                  ])),
-                ])),
+            const SizedBox(height: 18),
+            Row(children: [
+              const Icon(Icons.history, size: 16, color: UC.brown),
+              const SizedBox(width: 6),
+              Text(ar ? 'السجل' : 'Timeline', style: UT.h3),
+            ]),
+            const SizedBox(height: 10),
+            _timeline(((r['timeline'] as List?) ?? const []), ar),
             const SizedBox(height: 100),
           ]),
       bottomNavigationBar: (r != null && r['has_handover'] == true) ? SafeArea(top: false, child: Padding(
@@ -217,6 +218,87 @@ class _RestockDetailScreenState extends State<RestockDetailScreen> {
   Widget _chip(String t, Color c) => Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
     decoration: BoxDecoration(color: c.withValues(alpha: .12), borderRadius: BorderRadius.circular(8)),
     child: Text(t, style: TextStyle(color: c, fontSize: 11, fontWeight: FontWeight.w800)));
+
+  // ── Vertical connected timeline ──
+  Widget _timeline(List events, bool ar) {
+    if (events.isEmpty) {
+      return Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: UC.border)),
+        child: Row(children: [
+          const Icon(Icons.history_toggle_off, size: 18, color: UC.muted),
+          const SizedBox(width: 8),
+          Text(ar ? 'لا أحداث بعد' : 'No events yet', style: UT.small),
+        ]));
+    }
+    return Column(children: [
+      for (int i = 0; i < events.length; i++)
+        _timelineEvent((events[i] as Map).cast<String, dynamic>(), i == 0, i == events.length - 1, ar),
+    ]);
+  }
+
+  Widget _timelineEvent(Map<String, dynamic> m, bool first, bool last, bool ar) {
+    final body = (m['body'] ?? '').toString()
+        .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
+        .replaceAll(RegExp(r'</p>', caseSensitive: false), '\n')
+        .replaceAll(RegExp(r'<[^>]*>'), ' ')
+        .replaceAll(RegExp(r'[ \t]+'), ' ')
+        .replaceAll(RegExp(r'\n{2,}'), '\n')
+        .trim();
+    final author = (m['author'] ?? '').toString();
+    final when = (m['when'] ?? '').toString();
+    return IntrinsicHeight(child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      // dot + connector rail
+      SizedBox(width: 24, child: Column(children: [
+        Container(width: 2, height: 6, color: first ? Colors.transparent : UC.border),
+        Container(width: 13, height: 13,
+          decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle,
+            border: Border.all(color: UC.brown, width: 2.5)),
+          child: Center(child: Container(width: 4, height: 4,
+            decoration: const BoxDecoration(color: UC.brown, shape: BoxShape.circle)))),
+        Expanded(child: Container(width: 2, color: last ? Colors.transparent : UC.border)),
+      ])),
+      const SizedBox(width: 10),
+      // event card
+      Expanded(child: Padding(padding: const EdgeInsets.only(bottom: 10),
+        child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: UC.border)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              if (author.isNotEmpty) Flexible(child: Text(author, maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: UC.ink))),
+              const Spacer(),
+              if (when.isNotEmpty) Text(_relDate(when, ar), style: UT.tiny),
+            ]),
+            if (body.isNotEmpty) ...[
+              const SizedBox(height: 5),
+              Text(body, style: UT.body),
+            ],
+          ]))),
+      ),
+    ]));
+  }
+
+  String _relDate(String raw, bool ar) {
+    final dt = DateTime.tryParse(raw);
+    if (dt == null) return raw.split('T').first;
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inSeconds < 60) return ar ? 'الآن' : 'just now';
+    if (diff.inMinutes < 60) {
+      final n = diff.inMinutes;
+      return ar ? 'منذ $n د' : '${n}m ago';
+    }
+    if (diff.inHours < 24) {
+      final n = diff.inHours;
+      return ar ? 'منذ $n س' : '${n}h ago';
+    }
+    if (diff.inDays < 7) {
+      final n = diff.inDays;
+      return ar ? 'منذ $n ي' : '${n}d ago';
+    }
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${dt.year}-${two(dt.month)}-${two(dt.day)} ${two(dt.hour)}:${two(dt.minute)}';
+  }
 
   Widget _kv(String k, String v, {bool bold = false}) => Padding(padding: const EdgeInsets.symmetric(vertical: 2),
     child: Row(children: [

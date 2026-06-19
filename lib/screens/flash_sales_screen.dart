@@ -1,6 +1,77 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../api/api.dart';
 import '../theme/theme.dart';
+
+// ─────────────── shared helpers ───────────────
+String _pickName(dynamic name, bool ar) {
+  if (name is Map) {
+    final en = (name['en'] ?? '').toString();
+    final a = (name['ar'] ?? '').toString();
+    if (ar) return a.isNotEmpty ? a : en;
+    return en.isNotEmpty ? en : a;
+  }
+  return name?.toString() ?? '';
+}
+
+String _money(dynamic m) {
+  if (m is Map) {
+    final amount = m['amount'];
+    final symbol = (m['symbol'] ?? '').toString();
+    if (amount == null) return '';
+    return '$amount $symbol'.trim();
+  }
+  return m?.toString() ?? '';
+}
+
+String _countdown(int seconds, bool ar) {
+  if (seconds <= 0) return ar ? 'انتهى' : 'Ended';
+  final d = seconds ~/ 86400;
+  final h = (seconds % 86400) ~/ 3600;
+  final mi = (seconds % 3600) ~/ 60;
+  if (d > 0) return ar ? '${d}ي ${h}س متبقّية' : '${d}d ${h}h left';
+  if (h > 0) return ar ? '${h}س ${mi}د متبقّية' : '${h}h ${mi}m left';
+  final s = seconds % 60;
+  return ar ? '${mi}د ${s}ث متبقّية' : '${mi}m ${s}s left';
+}
+
+String _stateLabel(String s, bool ar) {
+  switch (s) {
+    case 'active': return ar ? 'نشط' : 'Active';
+    case 'draft': return ar ? 'مسودة' : 'Draft';
+    case 'done':
+    case 'ended':
+    case 'closed': return ar ? 'منتهٍ' : 'Ended';
+    case 'cancel':
+    case 'cancelled': return ar ? 'ملغى' : 'Cancelled';
+    default: return s;
+  }
+}
+
+Color _stateBg(String s) {
+  switch (s) {
+    case 'active': return UC.successBg;
+    case 'draft': return UC.warnBg;
+    default: return UC.bg;
+  }
+}
+
+Color _stateFg(String s) {
+  switch (s) {
+    case 'active': return UC.successDk;
+    case 'draft': return UC.warn;
+    default: return UC.muted;
+  }
+}
+
+String _fmtIso(String? iso, bool ar) {
+  if (iso == null || iso.isEmpty) return '—';
+  final d = DateTime.tryParse(iso);
+  if (d == null) return iso;
+  final l = d.toLocal();
+  String p(int n) => n.toString().padLeft(2, '0');
+  return '${l.year}-${p(l.month)}-${p(l.day)} ${p(l.hour)}:${p(l.minute)}';
+}
 
 /// Internal Promotions (vendor-run timed discounts; backend model
 /// uellow.flash.sale) — list + create + end.
@@ -42,17 +113,19 @@ class _FlashSalesScreenState extends State<FlashSalesScreen> {
   }
 
   Future<void> _create() async {
-    final created = await Navigator.push<bool>(context,
+    final newId = await Navigator.push<int>(context,
       MaterialPageRoute(builder: (_) => const PromotionCreateScreen()));
-    if (created == true) _refresh();
+    if (newId != null && newId > 0 && mounted) {
+      await Navigator.push(context,
+        MaterialPageRoute(builder: (_) => PromotionDetailScreen(id: newId)));
+    }
+    if (mounted) _refresh();
   }
 
-  Color _stateColor(String s) {
-    switch (s) {
-      case 'active': return UC.successBg;
-      case 'draft': return UC.warnBg;
-      default: return UC.bg;
-    }
+  Future<void> _open(int id) async {
+    await Navigator.push(context,
+      MaterialPageRoute(builder: (_) => PromotionDetailScreen(id: id)));
+    if (mounted) _refresh();
   }
 
   @override
@@ -102,39 +175,61 @@ class _FlashSalesScreenState extends State<FlashSalesScreen> {
               itemBuilder: (c, i) {
                 final f = items[i];
                 final st = (f['state'] ?? '').toString();
-                final name = (f['name'] is Map)
-                    ? (ar ? (f['name']['ar'] ?? f['name']['en']) : f['name']['en'])
-                    : f['name'];
-                return Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: UC.border)),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(children: [
-                      const Icon(Icons.bolt, color: UC.yellow, size: 18),
-                      const SizedBox(width: 4),
-                      Expanded(child: Text('$name',
-                          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14))),
-                      UPill(text: st, bg: _stateColor(st), fg: UC.brown),
+                final name = _pickName(f['name'], ar);
+                final remaining = (f['remaining_seconds'] is num)
+                    ? (f['remaining_seconds'] as num).toInt() : 0;
+                final units = (f['units_sold'] is num) ? (f['units_sold'] as num).toInt() : 0;
+                final revenue = _money(f['revenue']);
+                final dateLine = st == 'active'
+                    ? _countdown(remaining, ar)
+                    : '${_fmtIso(f['start']?.toString(), ar)} → ${_fmtIso(f['end']?.toString(), ar)}';
+                return InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: () => _open(f['id'] as int),
+                  child: Container(
+                    padding: const EdgeInsets.all(13),
+                    decoration: BoxDecoration(color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: UC.border)),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Row(children: [
+                        const Icon(Icons.bolt, color: UC.yellow, size: 18),
+                        const SizedBox(width: 4),
+                        Expanded(child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14.5))),
+                        UPill(text: _stateLabel(st, ar), bg: _stateBg(st), fg: _stateFg(st),
+                            live: st == 'active'),
+                      ]),
+                      const SizedBox(height: 9),
+                      Wrap(spacing: 6, runSpacing: 6, children: [
+                        UPill(text: '-${(f['discount_pct'] ?? 0)}%', bg: UC.dangerBg,
+                            fg: UC.dangerDk, icon: Icons.percent),
+                        UPill(text: '${f['product_count'] ?? 0} ${ar ? "منتج" : "items"}',
+                            icon: Icons.shopping_bag_outlined),
+                        if (units != 0)
+                          UPill(text: '$units ${ar ? "مبيع" : "sold"}', icon: Icons.shopping_cart_outlined),
+                        if (revenue.isNotEmpty && revenue != '0')
+                          UPill(text: revenue, bg: UC.successBg, fg: UC.successDk,
+                              icon: Icons.payments_outlined),
+                      ]),
+                      const SizedBox(height: 9),
+                      Row(children: [
+                        Icon(st == 'active' ? Icons.timer_outlined : Icons.event_outlined,
+                            size: 13, color: UC.muted),
+                        const SizedBox(width: 5),
+                        Expanded(child: Text(dateLine, style: UT.small,
+                            maxLines: 1, overflow: TextOverflow.ellipsis)),
+                        const Icon(Icons.chevron_right, size: 18, color: UC.muted),
+                      ]),
+                      if (st == 'active' && _canFlash)
+                        Align(alignment: AlignmentDirectional.centerEnd,
+                          child: TextButton.icon(
+                            onPressed: () => _end(f['id'] as int),
+                            icon: const Icon(Icons.stop_circle_outlined, size: 18, color: UC.dangerDk),
+                            label: Text(ar ? 'إنهاء العرض' : 'End promotion',
+                                style: const TextStyle(color: UC.dangerDk)))),
                     ]),
-                    const SizedBox(height: 6),
-                    Row(children: [
-                      UPill(text: '-${(f['discount_pct'] ?? 0)}%', bg: UC.dangerBg, fg: UC.dangerDk),
-                      const SizedBox(width: 6),
-                      UPill(text: '${f['product_count'] ?? 0} ${ar ? "منتج" : "items"}'),
-                      const SizedBox(width: 6),
-                      if ((f['units_sold'] ?? 0) != 0)
-                        UPill(text: '${f['units_sold']} ${ar ? "مبيع" : "sold"}'),
-                    ]),
-                    if (st == 'active' && _canFlash)
-                      Align(alignment: AlignmentDirectional.centerEnd,
-                        child: TextButton.icon(
-                          onPressed: () => _end(f['id'] as int),
-                          icon: const Icon(Icons.stop_circle_outlined, size: 18, color: UC.dangerDk),
-                          label: Text(ar ? 'إنهاء' : 'End',
-                              style: const TextStyle(color: UC.dangerDk)))),
-                  ]),
+                  ),
                 );
               },
             ),
@@ -236,11 +331,11 @@ class _PromotionCreateScreenState extends State<PromotionCreateScreen> {
       body['product_ids'] = _selected.keys.toList();
     }
     try {
-      await VendorApi.instance.flashCreate(body);
+      final newId = await VendorApi.instance.flashCreate(body);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(ar ? 'تم إنشاء العرض' : 'Promotion created')));
-      Navigator.pop(context, true);
+      Navigator.pop(context, newId);
     } catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
@@ -385,5 +480,284 @@ class _PromoProductPickerState extends State<_PromoProductPicker> {
             onTap: () => Navigator.pop(context, p));
         })),
       ])));
+  }
+}
+
+// ─────────────── Promotion detail (full record) ───────────────
+class PromotionDetailScreen extends StatefulWidget {
+  final int id;
+  const PromotionDetailScreen({super.key, required this.id});
+  @override
+  State<PromotionDetailScreen> createState() => _PromotionDetailScreenState();
+}
+
+class _PromotionDetailScreenState extends State<PromotionDetailScreen> {
+  late Future<Map<String, dynamic>> _future;
+  Map<String, dynamic>? _data;
+  int _remaining = 0;
+  bool _ending = false;
+  Timer? _ticker;
+
+  bool get _ar => VendorApi.instance.lang == 'ar';
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  void _load() {
+    _future = VendorApi.instance.flashDetail(widget.id).then((d) {
+      if (mounted) {
+        setState(() {
+          _data = d;
+          _remaining = (d['remaining_seconds'] is num)
+              ? (d['remaining_seconds'] as num).toInt() : 0;
+        });
+        _startTicker(d);
+      }
+      return d;
+    });
+  }
+
+  void _startTicker(Map<String, dynamic> d) {
+    _ticker?.cancel();
+    if ((d['state'] ?? '').toString() == 'active' && _remaining > 0) {
+      _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!mounted) { return; }
+        setState(() => _remaining = _remaining > 0 ? _remaining - 1 : 0);
+        if (_remaining <= 0) _ticker?.cancel();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _end() async {
+    final ar = _ar;
+    final ok = await showDialog<bool>(context: context, builder: (_) => AlertDialog(
+      title: Text(ar ? 'إنهاء العرض؟' : 'End promotion?'),
+      content: Text(ar
+        ? 'سيتم إيقاف العرض فوراً ولا يمكن التراجع.'
+        : 'This will stop the promotion immediately and cannot be undone.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context, false),
+          child: Text(ar ? 'إلغاء' : 'Cancel')),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: UC.danger, foregroundColor: Colors.white),
+          onPressed: () => Navigator.pop(context, true),
+          child: Text(ar ? 'إنهاء' : 'End')),
+      ]));
+    if (ok != true) return;
+    setState(() => _ending = true);
+    try {
+      await VendorApi.instance.flashEnd(widget.id);
+      if (!mounted) return;
+      _ticker?.cancel();
+      _load();
+      setState(() => _ending = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(ar ? 'تم إنهاء العرض' : 'Promotion ended')));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _ending = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ar = _ar;
+    return Scaffold(
+      backgroundColor: UC.bg,
+      appBar: AppBar(title: Text(ar ? 'تفاصيل العرض' : 'Promotion details')),
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: _future,
+        builder: (c, s) {
+          if (s.connectionState != ConnectionState.done && _data == null) {
+            return const USpinner();
+          }
+          if (s.hasError && _data == null) {
+            return Center(child: Padding(padding: const EdgeInsets.all(24),
+              child: Text('${s.error}', style: UT.body, textAlign: TextAlign.center)));
+          }
+          final d = _data ?? s.data ?? {};
+          return RefreshIndicator(
+            onRefresh: () async => _load(),
+            child: ListView(padding: const EdgeInsets.fromLTRB(14, 14, 14, 30),
+              children: _body(d, ar)),
+          );
+        },
+      ),
+    );
+  }
+
+  List<Widget> _body(Map<String, dynamic> d, bool ar) {
+    final st = (d['state'] ?? '').toString();
+    final name = _pickName(d['name'], ar);
+    final discount = d['discount_pct'] ?? 0;
+    final units = (d['units_sold'] is num) ? (d['units_sold'] as num).toInt() : 0;
+    final productCount = d['product_count'] ?? 0;
+    final extraComm = d['extra_commission'] ?? 0;
+    final revenue = _money(d['revenue']);
+    final products = (d['products'] is List) ? (d['products'] as List) : const [];
+
+    return [
+      // header
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(color: Colors.white,
+          borderRadius: BorderRadius.circular(16), border: Border.all(color: UC.border)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(width: 40, height: 40,
+              decoration: BoxDecoration(color: UC.yellowFaint, borderRadius: BorderRadius.circular(11)),
+              child: const Icon(Icons.bolt, color: UC.yellow, size: 22)),
+            const SizedBox(width: 11),
+            Expanded(child: Text(name, style: UT.h1, maxLines: 2, overflow: TextOverflow.ellipsis)),
+            UPill(text: _stateLabel(st, ar), bg: _stateBg(st), fg: _stateFg(st), live: st == 'active'),
+          ]),
+          const SizedBox(height: 12),
+          Row(children: [
+            Icon(st == 'active' ? Icons.timer_outlined : Icons.event_outlined,
+              size: 15, color: st == 'active' ? UC.successDk : UC.muted),
+            const SizedBox(width: 6),
+            Text(st == 'active' ? _countdown(_remaining, ar) : _stateLabel(st, ar),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900,
+                color: st == 'active' ? UC.successDk : UC.muted)),
+          ]),
+        ]),
+      ),
+      const SizedBox(height: 14),
+
+      // stat tiles
+      GridView.count(
+        crossAxisCount: 2, shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        mainAxisSpacing: 10, crossAxisSpacing: 10, childAspectRatio: 2.5,
+        children: [
+          _stat(Icons.percent, ar ? 'الخصم' : 'Discount', '-$discount%', UC.dangerDk),
+          _stat(Icons.shopping_bag_outlined, ar ? 'المنتجات' : 'Products', '$productCount', UC.brown),
+          _stat(Icons.shopping_cart_outlined, ar ? 'الوحدات المباعة' : 'Units sold', '$units', UC.info),
+          _stat(Icons.payments_outlined, ar ? 'الإيرادات' : 'Revenue',
+            revenue.isEmpty ? '—' : revenue, UC.successDk),
+          if ((extraComm is num ? extraComm.toDouble() : 0) != 0)
+            _stat(Icons.workspace_premium_outlined, ar ? 'عمولة إضافية' : 'Extra commission',
+              '$extraComm%', UC.warn),
+        ],
+      ),
+      const SizedBox(height: 14),
+
+      // dates
+      Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: Colors.white,
+          borderRadius: BorderRadius.circular(16), border: Border.all(color: UC.border)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [const Icon(Icons.calendar_today_outlined, size: 16, color: UC.brown),
+            const SizedBox(width: 7), Text(ar ? 'الفترة' : 'Schedule', style: UT.h3)]),
+          const SizedBox(height: 10),
+          _dateRow(ar ? 'يبدأ' : 'Start', _fmtIso(d['start']?.toString(), ar)),
+          const SizedBox(height: 6),
+          _dateRow(ar ? 'ينتهي' : 'End', _fmtIso(d['end']?.toString(), ar)),
+        ]),
+      ),
+      const SizedBox(height: 14),
+
+      // products
+      Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: Colors.white,
+          borderRadius: BorderRadius.circular(16), border: Border.all(color: UC.border)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [const Icon(Icons.inventory_2_outlined, size: 16, color: UC.brown),
+            const SizedBox(width: 7),
+            Text('${ar ? 'المنتجات' : 'Products'} (${products.length})', style: UT.h3)]),
+          const SizedBox(height: 4),
+          if (products.isEmpty)
+            Padding(padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Text(ar ? 'لا منتجات' : 'No products', style: UT.small)),
+          for (final p in products) _productRow(p as Map<String, dynamic>, ar),
+        ]),
+      ),
+      const SizedBox(height: 16),
+
+      if (st == 'active')
+        SizedBox(width: double.infinity, child: ElevatedButton.icon(
+          onPressed: _ending ? null : _end,
+          icon: _ending
+            ? const SizedBox(width: 16, height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+            : const Icon(Icons.stop_circle_outlined, size: 18),
+          label: Text(ar ? 'إنهاء العرض' : 'End promotion',
+            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: UC.danger, foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 14)))),
+    ];
+  }
+
+  Widget _stat(IconData ic, String label, String value, Color color) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    decoration: BoxDecoration(color: Colors.white,
+      borderRadius: BorderRadius.circular(14), border: Border.all(color: UC.border)),
+    child: Row(children: [
+      Icon(ic, size: 20, color: color),
+      const SizedBox(width: 9),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center, children: [
+        Text(label.toUpperCase(), style: UT.tiny, maxLines: 1, overflow: TextOverflow.ellipsis),
+        const SizedBox(height: 2),
+        Text(value, maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: color)),
+      ])),
+    ]));
+
+  Widget _dateRow(String label, String value) => Row(children: [
+    Expanded(child: Text(label, style: UT.small)),
+    Text(value, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: UC.ink)),
+  ]);
+
+  Widget _productRow(Map<String, dynamic> p, bool ar) {
+    final name = _pickName(p['name'], ar);
+    final img = p['image_url']?.toString();
+    final listPrice = _money(p['list_price']);
+    final salePrice = _money(p['sale_price']);
+    final disc = p['discount_pct'] ?? 0;
+    return Container(
+      margin: const EdgeInsets.only(top: 8), padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(color: UC.bg, borderRadius: BorderRadius.circular(12)),
+      child: Row(children: [
+        ClipRRect(borderRadius: BorderRadius.circular(9),
+          child: (img != null && img.isNotEmpty)
+            ? Image.network('${VendorApi.instance.baseUrl}$img',
+                width: 48, height: 48, fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(width: 48, height: 48, color: UC.border,
+                  child: const Icon(Icons.image, size: 18, color: UC.muted)))
+            : Container(width: 48, height: 48, color: UC.border,
+                child: const Icon(Icons.image, size: 18, color: UC.muted))),
+        const SizedBox(width: 10),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(name, maxLines: 2, overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5)),
+          const SizedBox(height: 4),
+          Row(children: [
+            if (listPrice.isNotEmpty)
+              Text(listPrice, style: const TextStyle(fontSize: 11, color: UC.muted,
+                decoration: TextDecoration.lineThrough)),
+            if (listPrice.isNotEmpty) const SizedBox(width: 6),
+            if (salePrice.isNotEmpty)
+              Text(salePrice, style: const TextStyle(fontSize: 12.5,
+                fontWeight: FontWeight.w900, color: UC.successDk)),
+          ]),
+        ])),
+        const SizedBox(width: 6),
+        UPill(text: '-$disc%', bg: UC.dangerBg, fg: UC.dangerDk),
+      ]),
+    );
   }
 }

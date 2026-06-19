@@ -60,7 +60,7 @@ class _DashboardTabState extends State<DashboardTab> {
           if (snap.hasError) return Center(child: Padding(padding: const EdgeInsets.all(24),
             child: Text(snap.error.toString(), style: UT.body, textAlign: TextAlign.center)));
           final d = snap.data!;
-          return ListView(padding: EdgeInsets.zero, children: [
+          return ListView(padding: const EdgeInsets.only(bottom: 24), children: [
             // Vendor Score banner
             Container(margin: const EdgeInsets.fromLTRB(14, 12, 14, 0),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -99,7 +99,7 @@ class _DashboardTabState extends State<DashboardTab> {
                   Text(d.revToday.format(lang),
                     style: const TextStyle(color: Colors.white, fontSize: 28,
                       fontWeight: FontWeight.w900, height: 1.1)),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   Row(children: [
                     _miniRev(ar ? 'هذا الأسبوع' : 'Week', d.revWeek.format(lang)),
                     _miniRev(ar ? 'هذا الشهر' : 'Month', d.revMonth.format(lang)),
@@ -125,46 +125,44 @@ class _DashboardTabState extends State<DashboardTab> {
                     Text('${d.invUnits} ${ar ? "وحدة بالتكلفة" : "units · at cost"}', style: UT.small),
                   ])),
                 ]))),
-            // Order cards
-            Padding(padding: const EdgeInsets.fromLTRB(14, 14, 14, 4),
-              child: Row(children: [Text(ar ? 'الطلبات' : 'Orders', style: UT.h3)])),
-            Padding(padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Row(children: [
-                _orderTile(d.ordersNew, ar ? 'جديدة' : 'New', UC.info, UC.infoBg),
-                const SizedBox(width: 6),
-                _orderTile(d.ordersConfirmed, ar ? 'قيد التنفيذ' : 'Active', UC.warn, UC.warnBg),
-                const SizedBox(width: 6),
-                _orderTile(d.ordersCompleted, ar ? 'مكتملة' : 'Done', UC.successDk, UC.successBg),
-                const SizedBox(width: 6),
-                _orderTile(d.ordersCancelled, ar ? 'ملغاة' : 'Cancelled', UC.dangerDk, UC.dangerBg),
-              ])),
-            // Performance KPIs
-            Padding(padding: const EdgeInsets.fromLTRB(14, 14, 14, 4),
-              child: Row(children: [Text(ar ? 'الأداء' : 'Performance', style: UT.h3)])),
-            Padding(padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Row(children: [
-                _kpiTile(ar ? 'متوسط الطلب' : 'AOV',
-                  '${(d.kpis['aov'] is Map) ? (d.kpis['aov']['amount'] ?? 0) : 0} ${(d.kpis['aov'] is Map) ? (d.kpis['aov']['symbol'] ?? '') : ''}'),
-                const SizedBox(width: 6),
-                _kpiTile(ar ? 'مبيعات الشهر' : 'Units (mo)', '${d.kpis['units_month'] ?? 0}'),
-                const SizedBox(width: 6),
-                _kpiTile(ar ? 'عملاء عائدون' : 'Repeat', '${d.kpis['repeat_pct'] ?? 0}%'),
-                const SizedBox(width: 6),
-                _kpiTile(ar ? 'استرجاع مفتوح' : 'Returns', '${d.kpis['open_returns'] ?? 0}'),
-              ])),
-            // Product cards
-            Padding(padding: const EdgeInsets.fromLTRB(14, 14, 14, 4),
-              child: Row(children: [Text(ar ? 'المنتجات' : 'Products', style: UT.h3)])),
-            Padding(padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Row(children: [
-                _prodTile(d.productsActive, ar ? 'نشطة' : 'Active', Icons.check_circle_outline, UC.successDk),
-                const SizedBox(width: 6),
-                _prodTile(d.productsPendingApproval, ar ? 'بانتظار الموافقة' : 'Pending', Icons.hourglass_bottom, UC.warn),
-                const SizedBox(width: 6),
-                _prodTile(d.productsLowStock, ar ? 'مخزون منخفض' : 'Low stock', Icons.warning_amber, UC.dangerDk),
-              ])),
+            // Orders — tappable 2-col grid
+            _sectionHeader(ar ? 'الطلبات' : 'Orders', Icons.shopping_bag_outlined),
+            _grid([
+              _orderTile(context, d.ordersNew, ar ? 'جديدة' : 'New', UC.info, UC.infoBg,
+                Icons.fiber_new, 'orders_new', ar ? 'الطلبات الجديدة' : 'New orders'),
+              _orderTile(context, d.ordersConfirmed, ar ? 'قيد التنفيذ' : 'Active', UC.warn, UC.warnBg,
+                Icons.local_shipping_outlined, 'orders_active', ar ? 'الطلبات قيد التنفيذ' : 'Active orders'),
+              _orderTile(context, d.ordersCompleted, ar ? 'مكتملة' : 'Done', UC.successDk, UC.successBg,
+                Icons.task_alt, 'orders_done', ar ? 'الطلبات المكتملة' : 'Completed orders'),
+              _orderTile(context, d.ordersCancelled, ar ? 'ملغاة' : 'Cancelled', UC.dangerDk, UC.dangerBg,
+                Icons.cancel_outlined, 'orders_cancelled', ar ? 'الطلبات الملغاة' : 'Cancelled orders'),
+            ]),
+            // Performance KPIs — non-tappable, except Returns
+            _sectionHeader(ar ? 'الأداء' : 'Performance', Icons.insights_outlined),
+            _grid([
+              _kpiTile(ar ? 'متوسط الطلب' : 'AOV',
+                '${(d.kpis['aov'] is Map) ? (d.kpis['aov']['amount'] ?? 0) : 0} ${(d.kpis['aov'] is Map) ? (d.kpis['aov']['symbol'] ?? '') : ''}',
+                Icons.payments_outlined),
+              _kpiTile(ar ? 'مبيعات الشهر' : 'Units (mo)', '${d.kpis['units_month'] ?? 0}',
+                Icons.inventory_2_outlined),
+              _kpiTile(ar ? 'عملاء عائدون' : 'Repeat', '${d.kpis['repeat_pct'] ?? 0}%',
+                Icons.repeat),
+              _kpiTile(ar ? 'استرجاع مفتوح' : 'Returns', '${d.kpis['open_returns'] ?? 0}',
+                Icons.assignment_return_outlined,
+                metric: 'returns_open', title: ar ? 'المرتجعات المفتوحة' : 'Open returns'),
+            ]),
+            // Products — tappable 2-col grid
+            _sectionHeader(ar ? 'المنتجات' : 'Products', Icons.category_outlined),
+            _grid([
+              _prodTile(context, d.productsActive, ar ? 'نشطة' : 'Active', Icons.check_circle_outline, UC.successDk,
+                'products_active', ar ? 'المنتجات النشطة' : 'Active products'),
+              _prodTile(context, d.productsPendingApproval, ar ? 'بانتظار الموافقة' : 'Pending', Icons.hourglass_bottom, UC.warn,
+                'products_pending', ar ? 'بانتظار الموافقة' : 'Pending approval'),
+              _prodTile(context, d.productsLowStock, ar ? 'مخزون منخفض' : 'Low stock', Icons.warning_amber, UC.dangerDk,
+                'products_low', ar ? 'مخزون منخفض' : 'Low stock'),
+            ]),
             // Wallet quick
-            Padding(padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
+            Padding(padding: const EdgeInsets.fromLTRB(14, 16, 14, 0),
               child: Material(color: Colors.white, borderRadius: BorderRadius.circular(13),
                 child: InkWell(borderRadius: BorderRadius.circular(13),
                   onTap: () => Navigator.pushNamed(context, '/wallet'),
@@ -191,8 +189,10 @@ class _DashboardTabState extends State<DashboardTab> {
                     ])))),
               ),
             // Recent orders — title + inline "More" on the same line.
-            if (d.recentOrders.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(14, 18, 14, 4),
+            if (d.recentOrders.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(14, 20, 14, 6),
               child: Row(children: [
+                const Icon(Icons.history, size: 16, color: UC.brown),
+                const SizedBox(width: 6),
                 Text(ar ? 'أحدث الطلبات' : 'Latest orders', style: UT.h3),
                 const Spacer(),
                 InkWell(
@@ -206,45 +206,90 @@ class _DashboardTabState extends State<DashboardTab> {
                     ]))),
               ])),
             for (final o in d.recentOrders) _recentRow(o, lang),
-            const SizedBox(height: 24),
           ]);
         })),
     );
   }
 
+  // Consistent section header with leading icon.
+  Widget _sectionHeader(String title, IconData icon) => Padding(
+    padding: const EdgeInsets.fromLTRB(14, 18, 14, 8),
+    child: Row(children: [
+      Icon(icon, size: 16, color: UC.brown),
+      const SizedBox(width: 6),
+      Text(title, style: UT.h3),
+    ]));
+
+  // Evenly-sized 2-column grid that keeps every tile aligned.
+  Widget _grid(List<Widget> tiles) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 14),
+    child: GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 8,
+      crossAxisSpacing: 8,
+      childAspectRatio: 2.4,
+      children: tiles,
+    ));
+
   Widget _miniRev(String l, String v) => Expanded(child: Padding(
     padding: const EdgeInsets.symmetric(horizontal: 3),
-    child: Container(padding: const EdgeInsets.all(8),
+    child: Container(padding: const EdgeInsets.all(9),
       decoration: BoxDecoration(color: const Color(0x14FFFFFF),
         borderRadius: BorderRadius.circular(9)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(l.toUpperCase(), style: const TextStyle(color: Color(0xCCFFE066),
           fontSize: 9, fontWeight: FontWeight.w800)),
-        Text(v, style: const TextStyle(color: Colors.white, fontSize: 12.5,
-          fontWeight: FontWeight.w900)),
+        const SizedBox(height: 2),
+        Text(v, maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: Colors.white, fontSize: 12.5,
+            fontWeight: FontWeight.w900)),
       ]))));
 
-  Widget _orderTile(int v, String l, Color fg, Color bg) => Expanded(child: Container(
-    padding: const EdgeInsets.all(10),
-    decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(11)),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('$v', style: TextStyle(color: fg, fontSize: 20, fontWeight: FontWeight.w900)),
-      const SizedBox(height: 2),
-      Text(l, style: TextStyle(color: fg, fontSize: 10, fontWeight: FontWeight.w800)),
-    ])));
+  Widget _tileShell({required Widget child, required Color bg, Color? border,
+      VoidCallback? onTap}) {
+    final box = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12),
+        border: border != null ? Border.all(color: border) : null),
+      child: child);
+    if (onTap == null) return box;
+    return Material(color: Colors.transparent, borderRadius: BorderRadius.circular(12),
+      child: InkWell(borderRadius: BorderRadius.circular(12), onTap: onTap, child: box));
+  }
 
-  Widget _prodTile(int v, String l, IconData ic, Color c) => Expanded(child: Container(
-    padding: const EdgeInsets.all(10),
-    decoration: BoxDecoration(color: Colors.white, border: Border.all(color: UC.border),
-      borderRadius: BorderRadius.circular(11)),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Icon(ic, size: 13, color: c),
-        const SizedBox(width: 4),
-        Text('$v', style: TextStyle(color: c, fontSize: 20, fontWeight: FontWeight.w900)),
-      ]),
-      Text(l, style: const TextStyle(color: UC.muted, fontSize: 10, fontWeight: FontWeight.w700)),
-    ])));
+  Widget _orderTile(BuildContext context, int v, String l, Color fg, Color bg,
+      IconData ic, String metric, String title) => _tileShell(
+    bg: bg,
+    onTap: () => Navigator.pushNamed(context, '/records',
+      arguments: {'metric': metric, 'title': title}),
+    child: Row(children: [
+      Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('$v', style: TextStyle(color: fg, fontSize: 22, fontWeight: FontWeight.w900, height: 1)),
+        const SizedBox(height: 3),
+        Text(l, maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: TextStyle(color: fg, fontSize: 10.5, fontWeight: FontWeight.w800)),
+      ])),
+      Icon(ic, size: 22, color: fg.withValues(alpha: .55)),
+    ]));
+
+  Widget _prodTile(BuildContext context, int v, String l, IconData ic, Color c,
+      String metric, String title) => _tileShell(
+    bg: Colors.white, border: UC.border,
+    onTap: () => Navigator.pushNamed(context, '/records',
+      arguments: {'metric': metric, 'title': title}),
+    child: Row(children: [
+      Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('$v', style: TextStyle(color: c, fontSize: 22, fontWeight: FontWeight.w900, height: 1)),
+        const SizedBox(height: 3),
+        Text(l, maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: UC.muted, fontSize: 10.5, fontWeight: FontWeight.w700)),
+      ])),
+      Icon(ic, size: 20, color: c.withValues(alpha: .6)),
+    ]));
 
   Color _scoreBg(String b) => {
     'excellent': UC.successBg, 'good': UC.successBg,
@@ -256,16 +301,23 @@ class _DashboardTabState extends State<DashboardTab> {
     'excellent': ar ? 'ممتاز' : 'Excellent', 'good': ar ? 'جيد' : 'Good',
     'fair': ar ? 'مقبول' : 'Fair', 'at_risk': ar ? 'يحتاج تحسين' : 'Needs work'}[b] ?? b;
 
-  Widget _kpiTile(String l, String v) => Expanded(child: Container(
-    padding: const EdgeInsets.all(10),
-    decoration: BoxDecoration(color: UC.yellowFaint, border: Border.all(color: UC.border),
-      borderRadius: BorderRadius.circular(11)),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(v, style: const TextStyle(color: UC.brown, fontSize: 15, fontWeight: FontWeight.w900),
-        maxLines: 1, overflow: TextOverflow.ellipsis),
-      Text(l, style: const TextStyle(color: UC.muted, fontSize: 9.5, fontWeight: FontWeight.w700),
-        maxLines: 1, overflow: TextOverflow.ellipsis),
-    ])));
+  Widget _kpiTile(String l, String v, IconData ic, {String? metric, String? title}) => _tileShell(
+    bg: UC.yellowFaint, border: UC.border,
+    onTap: (metric != null)
+      ? () => Navigator.pushNamed(context, '/records',
+          arguments: {'metric': metric, 'title': title ?? l})
+      : null,
+    child: Row(children: [
+      Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(v, style: const TextStyle(color: UC.brown, fontSize: 17, fontWeight: FontWeight.w900, height: 1),
+          maxLines: 1, overflow: TextOverflow.ellipsis),
+        const SizedBox(height: 3),
+        Text(l, style: const TextStyle(color: UC.muted, fontSize: 10, fontWeight: FontWeight.w700),
+          maxLines: 1, overflow: TextOverflow.ellipsis),
+      ])),
+      Icon(ic, size: 20, color: UC.brown.withValues(alpha: .45)),
+    ]));
 
   Widget _recentRow(RecentOrder o, String lang) => Padding(
     padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),

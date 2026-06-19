@@ -38,6 +38,7 @@ import 'screens/videos_screen.dart';
 import 'screens/scan_screen.dart';
 import 'screens/quick_sale_screen.dart';
 import 'screens/insights_screen.dart';
+import 'screens/records_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -116,6 +117,11 @@ class VendorApp extends StatelessWidget {
                 return MaterialPageRoute(settings: settings,
                     builder: (_) => ChatScreen(orderId: args['id'] as int? ?? 0,
                                                 title: args['title'] as String? ?? ''));
+              case '/records':
+                return MaterialPageRoute(settings: settings,
+                    builder: (_) => RecordsScreen(
+                        metric: args['metric'] as String? ?? '',
+                        title: args['title'] as String? ?? ''));
             }
             return null;
           },

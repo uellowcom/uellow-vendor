@@ -533,6 +533,18 @@ class VendorApi {
     final j = _need(await _get('/api/vendor/v1/analytics/kpis'));
     return (j['data'] as Map).cast<String, dynamic>();
   }
+  /// Drill-down: the records behind a KPI/home block (metric key).
+  Future<List<Map<String, dynamic>>> analyticsRecords(String metric) async {
+    final j = _need(await _get('/api/vendor/v1/analytics/records',
+        query: {'metric': metric}));
+    return (((j['data'] as Map?)?['rows'] as List?) ?? const [])
+        .map((e) => (e as Map).cast<String, dynamic>()).toList();
+  }
+  /// Full promotion record (openable after creation).
+  Future<Map<String, dynamic>> flashDetail(int id) async {
+    final j = _need(await _get('/api/vendor/v1/flash-sales/$id'));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
   Future<SalesTimeseries> salesTimeseries({int days = 30}) async {
     final j = _need(await _get('/api/vendor/v1/analytics/sales', query: {'days': '$days'}));
     return SalesTimeseries.fromJson((j['data'] as Map).cast<String, dynamic>());
@@ -570,8 +582,11 @@ class VendorApi {
   // ── Flash sales ──
   Future<List<Map<String, dynamic>>> flashSales() async =>
       _dataList(_need(await _get('/api/vendor/v1/flash-sales')));
-  Future<void> flashCreate(Map<String, dynamic> body) async =>
-      _need(await _post('/api/vendor/v1/flash-sales', body));
+  /// Returns the new promotion id so the caller can open its record.
+  Future<int> flashCreate(Map<String, dynamic> body) async {
+    final j = _need(await _post('/api/vendor/v1/flash-sales', body));
+    return _ai((j['data'] as Map?)?['id']);
+  }
   Future<void> flashEnd(int id) async =>
       _need(await _post('/api/vendor/v1/flash-sales/$id/end'));
 

@@ -43,7 +43,7 @@ class _MeTabState extends State<MeTab> {
         _Item(Icons.point_of_sale_outlined, 'Quick sale', 'بيع سريع', '/quick-sale', const Color(0xFF6366F1)),
         _Item(Icons.campaign_outlined, 'Sponsor', 'إعلانات ممولة', '/ads', const Color(0xFFF97316)),
         _Item(Icons.report_problem_outlined, 'Order issues', 'مشاكل الطلبات', '/disputes', UC.danger),
-        _Item(Icons.inventory_2_outlined, 'Stock', 'المخزون', '/stock', UC.successDk),
+        _Item(Icons.warehouse_outlined, 'Stock', 'المخزون', '/stock', const Color(0xFF2563EB)),
         _Item(Icons.refresh, 'Restock', 'طلبات التعبئة', '/restock', const Color(0xFF0EA5E9)),
         _Item(Icons.upload_file_outlined, 'Bulk import', 'استيراد جماعي', '/import', const Color(0xFF8B5CF6)),
         _Item(Icons.assignment_return_outlined, 'Stock returns', 'استرجاع بضاعة', '/returns', const Color(0xFFD97706),
@@ -165,21 +165,37 @@ class _MeTabState extends State<MeTab> {
         onTap: () => Navigator.pushNamed(context, it.route),
         child: Container(
           decoration: BoxDecoration(
+            color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: UC.border)),
+            border: Border.all(color: UC.border),
+            boxShadow: [
+              BoxShadow(
+                color: UC.ink.withValues(alpha: .05),
+                blurRadius: 8, offset: const Offset(0, 3)),
+            ],
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             Container(
               width: 50, height: 50, alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: it.color.withValues(alpha: .12),
-                borderRadius: BorderRadius.circular(15)),
-              child: Icon(it.icon, color: it.color, size: 26),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft, end: Alignment.bottomRight,
+                  colors: [
+                    it.color.withValues(alpha: .18),
+                    it.color.withValues(alpha: .08),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: it.color.withValues(alpha: .16)),
+              ),
+              child: Icon(it.icon, color: it.color, size: 25),
             ),
             const SizedBox(height: 9),
             Text(ar ? it.ar : it.en,
                 textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: UC.ink)),
+                style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800,
+                    color: UC.ink, height: 1.15)),
           ]),
         ),
       ),

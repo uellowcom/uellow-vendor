@@ -38,80 +38,63 @@ class _ShopTabState extends State<ShopTab> {
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: CustomScrollView(slivers: [
-          // ── Store header (banner + logo overlap) ──
+          // ── Store hero header (banner + scrim + overlapping logo) ──
           SliverToBoxAdapter(
-            child: Stack(clipBehavior: Clip.none, children: [
-              SizedBox(
-                height: 140,
-                width: double.infinity,
-                child: v?.bannerUrl != null
-                    ? CachedNetworkImage(
-                        imageUrl: '$base${v!.bannerUrl!}',
-                        fit: BoxFit.cover,
-                        errorWidget: (_, __, ___) => Container(color: UC.yellow))
-                    : Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [UC.yellow, UC.yellowSoft],
-                            begin: Alignment.topLeft, end: Alignment.bottomRight))),
-              ),
-              Positioned(
-                left: 16, bottom: -28,
-                child: Container(
-                  width: 72, height: 72,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: const [BoxShadow(color: Color(0x33000000),
-                        blurRadius: 10, offset: Offset(0, 4))]),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
-                    child: v?.logoUrl != null
-                        ? CachedNetworkImage(
-                            imageUrl: '$base${v!.logoUrl!}',
-                            fit: BoxFit.cover,
-                            errorWidget: (_, __, ___) => _logoFallback(v.storeName.t(lang)))
-                        : _logoFallback(v?.storeName.t(lang) ?? 'U')),
-                ),
-              ),
-            ]),
+            child: _hero(v, lang, ar, base),
           ),
+          // ── Stat pills + preview note + search ──
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 36, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 44, 16, 8),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(v?.storeName.t(lang) ?? '', style: UT.h1),
-                if ((v?.tagline.t(lang) ?? '').isNotEmpty)
-                  Text(v!.tagline.t(lang), style: UT.body),
-                const SizedBox(height: 8),
-                Row(children: [
-                  UPill(text: '⭐ ${(v?.avgRating ?? 0).toStringAsFixed(2)}',
+                Wrap(spacing: 7, runSpacing: 7, children: [
+                  UPill(
+                      text: (v?.avgRating ?? 0).toStringAsFixed(2),
+                      icon: Icons.star_rounded,
                       bg: UC.warnBg, fg: const Color(0xFF92400E)),
-                  const SizedBox(width: 6),
-                  UPill(text: '${v?.followerCount ?? 0} ${ar ? "متابع" : "followers"}'),
-                  const SizedBox(width: 6),
-                  UPill(text: (v?.tier ?? '').toUpperCase(),
+                  UPill(
+                      text: '${v?.followerCount ?? 0} ${ar ? "متابع" : "followers"}',
+                      icon: Icons.people_alt_rounded,
+                      bg: UC.bg, fg: UC.text),
+                  UPill(
+                      text: (v?.tier ?? '').toUpperCase(),
+                      icon: Icons.workspace_premium_rounded,
                       bg: UC.yellowFaint, fg: UC.brown),
                 ]),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
                   decoration: BoxDecoration(
-                    color: UC.infoBg, borderRadius: BorderRadius.circular(10)),
+                    color: UC.infoBg,
+                    borderRadius: BorderRadius.circular(12)),
                   child: Row(children: [
-                    const Icon(Icons.visibility, size: 14, color: UC.info),
-                    const SizedBox(width: 6),
+                    const Icon(Icons.visibility_rounded, size: 15, color: UC.info),
+                    const SizedBox(width: 7),
                     Expanded(child: Text(
                       ar ? 'هكذا يرى العملاء متجرك' : 'This is how customers see your shop',
-                      style: const TextStyle(fontSize: 11, color: UC.info, fontWeight: FontWeight.w700))),
+                      style: const TextStyle(fontSize: 11.5, color: UC.info, fontWeight: FontWeight.w800))),
                   ]),
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  decoration: InputDecoration(
-                    hintText: ar ? 'ابحث في متجرك' : 'Search your shop',
-                    prefixIcon: const Icon(Icons.search, size: 20)),
-                  onSubmitted: (s) { _q = s.trim(); _refresh(); },
+                const SizedBox(height: 14),
+                Material(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(13),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(13),
+                      border: Border.all(color: UC.border)),
+                    child: TextField(
+                      decoration: InputDecoration(
+                        filled: false,
+                        hintText: ar ? 'ابحث في متجرك' : 'Search your shop',
+                        prefixIcon: const Icon(Icons.search_rounded, size: 21, color: UC.muted),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 14)),
+                      onSubmitted: (s) { _q = s.trim(); _refresh(); },
+                    ),
+                  ),
                 ),
               ]),
             ),
@@ -155,6 +138,89 @@ class _ShopTabState extends State<ShopTab> {
       ),
     );
   }
+
+  Widget _hero(Vendor? v, String lang, bool ar, String base) {
+    final name = v?.storeName.t(lang) ?? '';
+    final tagline = v?.tagline.t(lang) ?? '';
+    return Stack(clipBehavior: Clip.none, children: [
+      // banner
+      SizedBox(
+        height: 188,
+        width: double.infinity,
+        child: v?.bannerUrl != null
+            ? CachedNetworkImage(
+                imageUrl: '$base${v!.bannerUrl!}',
+                fit: BoxFit.cover,
+                errorWidget: (_, __, ___) => _bannerFallback())
+            : _bannerFallback(),
+      ),
+      // gradient scrim for legibility
+      Positioned.fill(
+        bottom: 0,
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0x00000000), Color(0x14000000), Color(0xB3000000)],
+              stops: [0.35, 0.6, 1.0]))),
+      ),
+      // store name + tagline over the scrim
+      Positioned(
+        left: 16, right: 16, bottom: 16,
+        child: Padding(
+          padding: const EdgeInsetsDirectional.only(start: 88),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(name,
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900,
+                      height: 1.1, letterSpacing: -0.2,
+                      shadows: [Shadow(color: Color(0x66000000), blurRadius: 6, offset: Offset(0, 1))])),
+              if (tagline.isNotEmpty) ...[
+                const SizedBox(height: 3),
+                Text(tagline,
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: Color(0xF2FFFFFF), fontSize: 12.5, fontWeight: FontWeight.w600,
+                        shadows: [Shadow(color: Color(0x59000000), blurRadius: 4, offset: Offset(0, 1))])),
+              ],
+            ],
+          ),
+        ),
+      ),
+      // overlapping logo
+      PositionedDirectional(
+        start: 16, bottom: -34,
+        child: Container(
+          width: 78, height: 78,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: Colors.white, width: 3),
+            boxShadow: const [BoxShadow(color: Color(0x40000000),
+                blurRadius: 14, offset: Offset(0, 6))]),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(19),
+            child: v?.logoUrl != null
+                ? CachedNetworkImage(
+                    imageUrl: '$base${v!.logoUrl!}',
+                    fit: BoxFit.cover,
+                    errorWidget: (_, __, ___) => _logoFallback(name))
+                : _logoFallback(name.isEmpty ? 'U' : name)),
+        ),
+      ),
+    ]);
+  }
+
+  Widget _bannerFallback() => Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [UC.brown, UC.brownSoft, UC.yellow],
+          begin: Alignment.topLeft, end: Alignment.bottomRight)));
 
   Widget _card(ProductSummary p, String lang, String base) {
     return Material(

@@ -4,7 +4,8 @@ import '../api/api.dart';
 import '../theme/theme.dart';
 
 /// Storefront preview — shows the vendor how customers see their shop:
-/// the store header + the live (published) catalogue as customer-style cards.
+/// the store header + the live (published) catalogue as customer-style cards,
+/// with category filtering, an active-promotions block and infinite scroll.
 class ShopTab extends StatefulWidget {
   const ShopTab({super.key});
   @override
@@ -12,19 +13,120 @@ class ShopTab extends StatefulWidget {
 }
 
 class _ShopTabState extends State<ShopTab> {
-  Future<List<ProductSummary>>? _f;
+  static const int _pageSize = 20;
+
+  final ScrollController _scroll = ScrollController();
+  final List<ProductSummary> _items = [];
+
   String _q = '';
+  int? _categoryId;            // null = All
+  int _page = 1;
+  bool _loading = false;       // a page fetch is in flight
+  bool _hasMore = true;        // more pages available
+  bool _firstLoadDone = false; // first page resolved (success or empty)
+  String? _error;
+
+  // shop meta (loaded once)
+  List<Map<String, dynamic>> _categories = const [];
+  List<Map<String, dynamic>> _promotions = const [];
 
   @override
   void initState() {
     super.initState();
-    _f = VendorApi.instance.products(state: 'live');
+    _scroll.addListener(_onScroll);
+    _loadMeta();
+    _loadFirstPage();
+  }
+
+  @override
+  void dispose() {
+    _scroll.removeListener(_onScroll);
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scroll.hasClients) return;
+    if (_scroll.position.pixels >=
+        _scroll.position.maxScrollExtent - 400) {
+      _loadNextPage();
+    }
+  }
+
+  Future<void> _loadMeta() async {
+    try {
+      final m = await VendorApi.instance.shopMeta();
+      if (!mounted) return;
+      setState(() {
+        _categories = ((m['categories'] as List?) ?? const [])
+            .cast<Map>()
+            .map((e) => e.cast<String, dynamic>())
+            .toList();
+        _promotions = ((m['promotions'] as List?) ?? const [])
+            .cast<Map>()
+            .map((e) => e.cast<String, dynamic>())
+            .toList();
+      });
+    } catch (_) {
+      // fail silently; the product grid still works without meta
+    }
+  }
+
+  Future<void> _loadFirstPage() async {
+    setState(() {
+      _items.clear();
+      _page = 1;
+      _hasMore = true;
+      _firstLoadDone = false;
+      _error = null;
+    });
+    await _fetchPage(1);
+  }
+
+  Future<void> _loadNextPage() async {
+    if (_loading || !_hasMore || !_firstLoadDone) return;
+    await _fetchPage(_page + 1);
+  }
+
+  Future<void> _fetchPage(int page) async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    try {
+      final batch = await VendorApi.instance.products(
+        state: 'live',
+        search: _q.isEmpty ? null : _q,
+        categoryId: _categoryId,
+        page: page,
+      );
+      if (!mounted) return;
+      setState(() {
+        _page = page;
+        _items.addAll(batch);
+        _hasMore = batch.length >= _pageSize;
+        _firstLoadDone = true;
+        _error = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _firstLoadDone = true;
+        _hasMore = false;
+      });
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   Future<void> _refresh() async {
-    setState(() => _f = VendorApi.instance.products(
-        state: 'live', search: _q.isEmpty ? null : _q));
-    await _f;
+    await _loadMeta();
+    await _loadFirstPage();
+  }
+
+  void _selectCategory(int? id) {
+    if (_categoryId == id) return;
+    setState(() => _categoryId = id);
+    _loadFirstPage();
   }
 
   @override
@@ -37,7 +139,7 @@ class _ShopTabState extends State<ShopTab> {
       backgroundColor: UC.bg,
       body: RefreshIndicator(
         onRefresh: _refresh,
-        child: CustomScrollView(slivers: [
+        child: CustomScrollView(controller: _scroll, slivers: [
           // ── Store hero header (banner + scrim + overlapping logo) ──
           SliverToBoxAdapter(
             child: _hero(v, lang, ar, base),
@@ -92,51 +194,226 @@ class _ShopTabState extends State<ShopTab> {
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
                         contentPadding: const EdgeInsets.symmetric(vertical: 14)),
-                      onSubmitted: (s) { _q = s.trim(); _refresh(); },
+                      onSubmitted: (s) { _q = s.trim(); _loadFirstPage(); },
                     ),
                   ),
                 ),
               ]),
             ),
           ),
+          // ── Category chips bar ──
+          if (_categories.isNotEmpty)
+            SliverToBoxAdapter(child: _categoryBar(lang, ar)),
+          // ── Promotions block ──
+          if (_promotions.isNotEmpty)
+            SliverToBoxAdapter(child: _promotionsBlock(lang, ar)),
           // ── Live catalogue grid ──
-          FutureBuilder<List<ProductSummary>>(
-            future: _f,
-            builder: (_, snap) {
-              if (snap.connectionState != ConnectionState.done) {
-                return const SliverToBoxAdapter(
-                    child: Padding(padding: EdgeInsets.all(40), child: USpinner()));
-              }
-              if (snap.hasError) {
-                return SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.all(30),
-                    child: Text(snap.error.toString(), textAlign: TextAlign.center, style: UT.body)));
-              }
-              final items = snap.data ?? const [];
-              if (items.isEmpty) {
-                return SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.all(40),
-                  child: Column(children: [
-                    const Icon(Icons.storefront_outlined, size: 44, color: UC.muted),
-                    const SizedBox(height: 10),
-                    Text(ar ? 'لا توجد منتجات منشورة بعد' : 'No published products yet',
-                        style: UT.body, textAlign: TextAlign.center),
-                  ])));
-              }
-              return SliverPadding(
-                padding: const EdgeInsets.fromLTRB(12, 4, 12, 28),
-                sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12,
-                    childAspectRatio: .66),
-                  delegate: SliverChildBuilderDelegate(
-                    (c, i) => _card(items[i], lang, base),
-                    childCount: items.length),
-                ),
-              );
-            },
-          ),
+          ..._buildGridSlivers(lang, ar, base),
+          // ── Loading / end footer ──
+          SliverToBoxAdapter(child: _footer(ar)),
         ]),
       ),
     );
+  }
+
+  // ── Grid slivers (loading / error / empty / grid) ──
+  List<Widget> _buildGridSlivers(String lang, bool ar, String base) {
+    if (!_firstLoadDone) {
+      return const [
+        SliverToBoxAdapter(
+            child: Padding(padding: EdgeInsets.all(40), child: USpinner())),
+      ];
+    }
+    if (_error != null && _items.isEmpty) {
+      return [
+        SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.all(30),
+            child: Text(_error!, textAlign: TextAlign.center, style: UT.body))),
+      ];
+    }
+    if (_items.isEmpty) {
+      return [
+        SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.all(40),
+          child: Column(children: [
+            const Icon(Icons.storefront_outlined, size: 44, color: UC.muted),
+            const SizedBox(height: 10),
+            Text(ar ? 'لا توجد منتجات منشورة بعد' : 'No published products yet',
+                style: UT.body, textAlign: TextAlign.center),
+          ]))),
+      ];
+    }
+    return [
+      SliverPadding(
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+        sliver: SliverGrid(
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12,
+            childAspectRatio: .66),
+          delegate: SliverChildBuilderDelegate(
+            (c, i) => _card(_items[i], lang, base),
+            childCount: _items.length),
+        ),
+      ),
+    ];
+  }
+
+  Widget _footer(bool ar) {
+    if (_loading && _items.isNotEmpty) {
+      return const Padding(
+          padding: EdgeInsets.fromLTRB(0, 6, 0, 28), child: USpinner(size: 22));
+    }
+    if (!_hasMore && _items.isNotEmpty) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(0, 6, 0, 28),
+        child: Center(child: Text(
+            ar ? 'وصلت إلى نهاية القائمة' : 'You\'ve reached the end',
+            style: UT.tiny)),
+      );
+    }
+    return const SizedBox(height: 28);
+  }
+
+  // ── Category chips bar ──
+  Widget _categoryBar(String lang, bool ar) {
+    final chips = <Widget>[];
+    chips.add(_catChip(label: ar ? 'الكل' : 'All', count: null,
+        selected: _categoryId == null, onTap: () => _selectCategory(null)));
+    for (final c in _categories) {
+      final id = (c['id'] as num?)?.toInt();
+      if (id == null) continue;
+      final nameMap = (c['name'] as Map?)?.cast<String, dynamic>() ?? const {};
+      final name = (nameMap[lang] ?? nameMap['en'] ?? nameMap['ar'] ?? '').toString();
+      final count = (c['count'] as num?)?.toInt();
+      chips.add(_catChip(label: name, count: count,
+          selected: _categoryId == id, onTap: () => _selectCategory(id)));
+    }
+    return SizedBox(
+      height: 42,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+        itemCount: chips.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (_, i) => chips[i],
+      ),
+    );
+  }
+
+  Widget _catChip({required String label, int? count,
+      required bool selected, required VoidCallback onTap}) {
+    return Material(
+      color: selected ? UC.brown : Colors.white,
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: selected ? UC.brown : UC.border)),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Text(label,
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800,
+                    color: selected ? Colors.white : UC.text)),
+            if (count != null) ...[
+              const SizedBox(width: 5),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                decoration: BoxDecoration(
+                  color: selected ? const Color(0x33FFFFFF) : UC.bg,
+                  borderRadius: BorderRadius.circular(999)),
+                child: Text('$count',
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900,
+                        color: selected ? Colors.white : UC.muted)),
+              ),
+            ],
+          ]),
+        ),
+      ),
+    );
+  }
+
+  // ── Promotions block ──
+  Widget _promotionsBlock(String lang, bool ar) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Icon(Icons.local_fire_department_rounded, size: 18, color: UC.danger),
+          const SizedBox(width: 6),
+          Text(ar ? 'العروض النشطة' : 'Active promotions', style: UT.h3),
+        ]),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 116,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _promotions.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (_, i) => _promoCard(_promotions[i], lang, ar),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _promoCard(Map<String, dynamic> p, String lang, bool ar) {
+    final nameMap = (p['name'] as Map?)?.cast<String, dynamic>() ?? const {};
+    final name = (nameMap[lang] ?? nameMap['en'] ?? nameMap['ar'] ?? '').toString();
+    final disc = (p['discount_pct'] as num?)?.toDouble() ?? 0;
+    final pCount = (p['product_count'] as num?)?.toInt() ?? 0;
+    final remaining = (p['remaining_seconds'] as num?)?.toInt() ?? 0;
+    return Container(
+      width: 220,
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          colors: [UC.brown, UC.brownSoft],
+          begin: Alignment.topLeft, end: Alignment.bottomRight)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          if (disc > 0)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: UC.yellow, borderRadius: BorderRadius.circular(999)),
+              child: Text('-${disc.toStringAsFixed(disc % 1 == 0 ? 0 : 1)}%',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900,
+                      color: UC.brown)),
+            ),
+          const Spacer(),
+          if (remaining > 0)
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.timer_outlined, size: 13, color: Color(0xF2FFFFFF)),
+              const SizedBox(width: 3),
+              Text(_fmtCountdown(remaining, ar),
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800,
+                      color: Color(0xF2FFFFFF))),
+            ]),
+        ]),
+        const Spacer(),
+        Text(name,
+            maxLines: 2, overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900,
+                color: Colors.white, height: 1.2)),
+        const SizedBox(height: 5),
+        Text(
+            ar ? '$pCount منتج' : '$pCount ${pCount == 1 ? "product" : "products"}',
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
+                color: Color(0xCCFFFFFF))),
+      ]),
+    );
+  }
+
+  String _fmtCountdown(int seconds, bool ar) {
+    if (seconds <= 0) return ar ? 'انتهى' : 'ended';
+    final d = seconds ~/ 86400;
+    final h = (seconds % 86400) ~/ 3600;
+    final m = (seconds % 3600) ~/ 60;
+    if (d > 0) return ar ? '$d ي $h س' : '${d}d ${h}h';
+    if (h > 0) return ar ? '$h س $m د' : '${h}h ${m}m';
+    return ar ? '$m د' : '${m}m';
   }
 
   Widget _hero(Vendor? v, String lang, bool ar, String base) {

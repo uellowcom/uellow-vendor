@@ -290,14 +290,20 @@ class VendorApi {
   }
 
   // Products
-  Future<List<ProductSummary>> products({String? state, String? search, int page = 1}) async {
+  Future<List<ProductSummary>> products({String? state, String? search, int page = 1, int? categoryId}) async {
     final j = _need(await _get('/api/vendor/v1/products', query: {
       if (state != null && state.isNotEmpty) 'state': state,
       if (search != null && search.isNotEmpty) 'search': search,
+      if (categoryId != null && categoryId > 0) 'category_id': '$categoryId',
       'page': '$page',
     }));
     return ((j['data'] as List).cast<Map>())
         .map((m) => ProductSummary.fromJson(m.cast<String, dynamic>())).toList();
+  }
+  /// Shop tab meta: categories present in the live catalogue + active promotions.
+  Future<Map<String, dynamic>> shopMeta() async {
+    final j = _need(await _get('/api/vendor/v1/shop/meta'));
+    return (j['data'] as Map).cast<String, dynamic>();
   }
   Future<ProductDetail> productDetail(int id) async {
     final j = _need(await _get('/api/vendor/v1/products/$id'));
@@ -357,6 +363,17 @@ class VendorApi {
   }
   Future<void> videoDelete(int id) async {
     _need(await _post('/api/vendor/v1/videos/$id/delete'));
+  }
+  Future<Map<String, dynamic>> videoDetail(int id) async {
+    final j = _need(await _get('/api/vendor/v1/videos/$id'));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+  Future<Map<String, dynamic>> videoUpdate(int id, Map<String, dynamic> body) async {
+    final j = _need(await _post('/api/vendor/v1/videos/$id/update', body));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+  Future<void> videoRequest(int id, String action, String note) async {
+    _need(await _post('/api/vendor/v1/videos/$id/request', {'action': action, 'note': note}));
   }
 
   // ── Bulk imports (file → editable record → review) ──────────
@@ -421,6 +438,11 @@ class VendorApi {
   /// {campaigns:[...], daily_rate, wallet_balance}
   Future<Map<String, dynamic>> ads() async {
     final j = _need(await _get('/api/vendor/v1/ads'));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+  /// Openable sponsored-ad record with live performance (ctr/cpc/images).
+  Future<Map<String, dynamic>> adDetail(int id) async {
+    final j = _need(await _get('/api/vendor/v1/ads/$id'));
     return (j['data'] as Map).cast<String, dynamic>();
   }
   Future<Map<String, dynamic>> adQuote() async {

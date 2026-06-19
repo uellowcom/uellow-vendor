@@ -174,12 +174,7 @@ class _QuickSaleScreenState extends State<QuickSaleScreen> with SingleTickerProv
         ]),
         _card(_ar ? 'المصدر والتوصيل' : 'Source & delivery', Icons.local_shipping_outlined, [
           _lbl(_ar ? 'المخزن المصدر' : 'Source warehouse'),
-          DropdownButtonFormField<int>(
-            value: _warehouseId, isExpanded: true,
-            hint: Text(_ar ? 'اختر المخزن' : 'Select warehouse'),
-            items: [for (final w in _warehouses) DropdownMenuItem<int>(
-              value: w['id'] as int, child: Text('${w['name']}', overflow: TextOverflow.ellipsis))],
-            onChanged: (v) => setState(() => _warehouseId = v)),
+          _sourceField(),
           const SizedBox(height: 10),
           _lbl(_ar ? 'موعد التوصيل' : 'Delivery date'),
           InkWell(onTap: _pickDate, borderRadius: BorderRadius.circular(11),
@@ -327,6 +322,56 @@ class _QuickSaleScreenState extends State<QuickSaleScreen> with SingleTickerProv
   Widget _lbl(String t) => Padding(padding: const EdgeInsets.only(bottom: 6),
     child: Text(t.toUpperCase(), style: const TextStyle(fontSize: 10.5,
       fontWeight: FontWeight.w800, color: UC.muted, letterSpacing: .4)));
+
+  // Single own source → clean read-only card. >1 → styled dropdown fallback.
+  Widget _sourceField() {
+    if (_warehouses.length > 1) {
+      return DropdownButtonFormField<int>(
+        value: _warehouseId, isExpanded: true,
+        hint: Text(_ar ? 'اختر المخزن' : 'Select warehouse'),
+        items: [for (final w in _warehouses) DropdownMenuItem<int>(
+          value: w['id'] as int, child: Text('${w['name']}', overflow: TextOverflow.ellipsis))],
+        onChanged: (v) => setState(() => _warehouseId = v));
+    }
+    if (_warehouses.isEmpty) {
+      return Text(_ar ? 'لا يوجد مخزن متاح' : 'No source warehouse available', style: UT.small);
+    }
+    final w = _warehouses.first;
+    final name = '${w['name'] ?? ''}';
+    final location = '${w['location'] ?? ''}';
+    final noteMap = w['note'];
+    final note = noteMap is Map ? '${noteMap[_lang] ?? noteMap['en'] ?? ''}' : '';
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: UC.yellowFaint, borderRadius: BorderRadius.circular(11),
+        border: Border.all(color: UC.border)),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Container(
+          width: 40, height: 40,
+          decoration: BoxDecoration(color: UC.yellow, borderRadius: BorderRadius.circular(10)),
+          child: const Icon(Icons.warehouse_outlined, size: 22, color: UC.brown)),
+        const SizedBox(width: 12),
+        Expanded(child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(name.isEmpty ? (_ar ? 'مخزنك' : 'Your warehouse') : name,
+              style: UT.h3, maxLines: 2, overflow: TextOverflow.ellipsis),
+            if (location.isNotEmpty) ...[
+              const SizedBox(height: 3),
+              Row(children: [
+                const Icon(Icons.place_outlined, size: 13, color: UC.muted),
+                const SizedBox(width: 4),
+                Expanded(child: Text(location, style: UT.small,
+                  maxLines: 2, overflow: TextOverflow.ellipsis)),
+              ]),
+            ],
+            if (note.isNotEmpty) ...[
+              const SizedBox(height: 7),
+              UPill(text: note, bg: UC.yellow, fg: UC.brown, icon: Icons.check_circle_outline),
+            ],
+          ])),
+      ]));
+  }
 }
 
 class _Line {

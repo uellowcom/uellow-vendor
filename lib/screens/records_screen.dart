@@ -82,8 +82,15 @@ class _RecordsScreenState extends State<RecordsScreen> {
                         child: Icon(_icon(kind), size: 18, color: UC.brown)),
                       const SizedBox(width: 11),
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text((r['title'] ?? '').toString(), maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                        Row(children: [
+                          Flexible(child: Text((r['title'] ?? '').toString(),
+                            maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13))),
+                          if ((r['badge'] ?? '').toString().isNotEmpty) ...[
+                            const SizedBox(width: 6),
+                            UPill(text: (r['badge']).toString(), bg: UC.infoBg, fg: const Color(0xFF1E40AF)),
+                          ],
+                        ]),
                         if ((r['subtitle'] ?? '').toString().isNotEmpty)
                           Text((r['subtitle']).toString(), maxLines: 1, overflow: TextOverflow.ellipsis,
                             style: UT.small),

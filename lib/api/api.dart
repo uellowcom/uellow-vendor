@@ -339,6 +339,34 @@ class VendorApi {
     _need(await _post('/api/vendor/v1/videos/$id/delete'));
   }
 
+  // ── Bulk imports (file → editable record → review) ──────────
+  Future<List<Map<String, dynamic>>> imports() async {
+    final j = _need(await _get('/api/vendor/v1/imports'));
+    return ((j['data'] as List).cast<Map>()).map((m) => m.cast<String, dynamic>()).toList();
+  }
+  Future<Map<String, dynamic>> importCreate(String fileBase64, String fileName) async {
+    final j = _need(await _post('/api/vendor/v1/imports/create',
+        {'file_base64': fileBase64, 'file_name': fileName}));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+  Future<Map<String, dynamic>> importGet(int id) async {
+    final j = _need(await _get('/api/vendor/v1/imports/$id'));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+  Future<Map<String, dynamic>> importEditLine(int jobId, int lineId, Map<String, dynamic> fields) async {
+    final j = _need(await _post('/api/vendor/v1/imports/$jobId/line/$lineId', fields));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+  Future<void> importDeleteLine(int jobId, int lineId) async {
+    _need(await _post('/api/vendor/v1/imports/$jobId/line/$lineId/delete'));
+  }
+  Future<void> importSubmit(int id) async {
+    _need(await _post('/api/vendor/v1/imports/$id/submit'));
+  }
+  Future<void> importDelete(int id) async {
+    _need(await _post('/api/vendor/v1/imports/$id/delete'));
+  }
+
   // ── Barcode lookup ──────────────────────────────────────────
   /// Resolve a scanned barcode/SKU to one of the vendor's products (ProductDetail).
   Future<ProductDetail?> productByBarcode(String barcode) async {

@@ -537,12 +537,16 @@ class VendorApi {
           {'product_id': productId, 'qty': qty, 'notes': notes}));
 
   // ── Stock returns (withdraw goods stored at Uellow) ──
-  Future<List<Map<String, dynamic>>> returnList() async =>
-      _dataList(_need(await _get('/api/vendor/v1/returns')));
-  Future<void> returnCreate(String pickupMode, String reason,
+  /// {returns:[...], reasons:[{code,en,ar}]}
+  Future<Map<String, dynamic>> returnList() async {
+    final j = _need(await _get('/api/vendor/v1/returns'));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+  Future<void> returnCreate(String pickupMode, String reasonCode, String reason,
       List<Map<String, dynamic>> items) async =>
       _need(await _post('/api/vendor/v1/returns',
-          {'pickup_mode': pickupMode, 'reason': reason, 'items': items}));
+          {'pickup_mode': pickupMode, 'reason_code': reasonCode,
+           'reason': reason, 'items': items}));
 
   // ── Store style ──
   Future<Map<String, dynamic>> styleGet() async {

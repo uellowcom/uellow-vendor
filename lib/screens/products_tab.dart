@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../api/api.dart';
 import '../theme/theme.dart';
 
+const int _kPerPage = 20;
+
 class ProductsTab extends StatefulWidget {
   const ProductsTab({super.key});
   @override
@@ -12,14 +14,54 @@ class ProductsTab extends StatefulWidget {
 class _ProductsTabState extends State<ProductsTab> {
   String _state = '';
   String _search = '';
-  Future<List<ProductSummary>>? _f;
   final _q = TextEditingController();
+  final _scroll = ScrollController();
+
+  final List<ProductSummary> _items = [];
+  int _page = 1;
+  bool _loading = false;
+  bool _hasMore = true;
+  bool _firstDone = false;
+  Object? _error;
+
   @override
-  void initState() { super.initState(); _reload(); }
+  void initState() {
+    super.initState();
+    _scroll.addListener(_onScroll);
+    _reload();
+  }
+
   @override
-  void dispose() { _q.dispose(); super.dispose(); }
-  void _reload() {
-    setState(() => _f = VendorApi.instance.products(state: _state, search: _search));
+  void dispose() { _q.dispose(); _scroll.dispose(); super.dispose(); }
+
+  void _onScroll() {
+    if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 400) _loadMore();
+  }
+
+  Future<void> _reload() async {
+    setState(() {
+      _items.clear(); _page = 1; _hasMore = true; _firstDone = false; _error = null;
+    });
+    await _loadMore();
+  }
+
+  Future<void> _loadMore() async {
+    if (_loading || !_hasMore) return;
+    setState(() => _loading = true);
+    try {
+      final rows = await VendorApi.instance.products(
+        state: _state, search: _search, page: _page);
+      setState(() {
+        _items.addAll(rows);
+        _hasMore = rows.length >= _kPerPage;
+        _page += 1;
+        _error = null;
+      });
+    } catch (e) {
+      setState(() => _error = e);
+    } finally {
+      if (mounted) setState(() { _loading = false; _firstDone = true; });
+    }
   }
 
   Color _apprBg(String s) => switch (s) {
@@ -61,33 +103,46 @@ class _ProductsTabState extends State<ProductsTab> {
               ])),
           ])),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      // Smaller, more professional new-product action.
+      floatingActionButton: FloatingActionButton.small(
         onPressed: () async {
           await Navigator.pushNamed(context, '/product-edit');
           _reload();
         },
         backgroundColor: UC.brown, foregroundColor: UC.yellowSoft,
-        icon: const Icon(Icons.add),
-        label: Text(ar ? 'منتج جديد' : 'New product',
-          style: const TextStyle(fontWeight: FontWeight.w900))),
-      body: RefreshIndicator(onRefresh: () async { _reload(); await _f; },
-        child: FutureBuilder<List<ProductSummary>>(future: _f, builder: (_, snap) {
-          if (snap.connectionState != ConnectionState.done) return const Center(child: USpinner());
-          if (snap.hasError) return Center(child: Padding(padding: const EdgeInsets.all(24),
-            child: Text(snap.error.toString(), style: UT.body, textAlign: TextAlign.center)));
-          final rows = snap.data ?? const <ProductSummary>[];
-          if (rows.isEmpty) return Padding(padding: const EdgeInsets.all(40),
-            child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.shopping_bag_outlined, size: 48, color: UC.muted),
-              const SizedBox(height: 12),
-              Text(ar ? 'لا توجد منتجات هنا' : 'No products here', style: UT.body),
-            ])));
-          return ListView.separated(padding: const EdgeInsets.fromLTRB(10, 0, 10, 80),
-            itemCount: rows.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (_, i) => _card(rows[i], lang));
-        })),
+        tooltip: ar ? 'منتج جديد' : 'New product',
+        child: const Icon(Icons.add, size: 22)),
+      body: RefreshIndicator(onRefresh: _reload, child: _body(lang, ar)),
     );
+  }
+
+  Widget _body(String lang, bool ar) {
+    if (!_firstDone && _items.isEmpty) return const Center(child: USpinner());
+    if (_error != null && _items.isEmpty) {
+      return ListView(children: [Padding(padding: const EdgeInsets.all(24),
+        child: Text(_error.toString(), style: UT.body, textAlign: TextAlign.center))]);
+    }
+    if (_items.isEmpty) {
+      return ListView(children: [Padding(padding: const EdgeInsets.all(40),
+        child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.shopping_bag_outlined, size: 48, color: UC.muted),
+          const SizedBox(height: 12),
+          Text(ar ? 'لا توجد منتجات هنا' : 'No products here', style: UT.body),
+        ])))]);
+    }
+    return ListView.separated(controller: _scroll,
+      padding: const EdgeInsets.fromLTRB(10, 0, 10, 90),
+      itemCount: _items.length + 1,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (_, i) {
+        if (i == _items.length) {
+          return Padding(padding: const EdgeInsets.all(16),
+            child: Center(child: _hasMore
+              ? const USpinner()
+              : Text('— ${ar ? "النهاية" : "end"} —', style: UT.small)));
+        }
+        return _card(_items[i], lang);
+      });
   }
 
   Widget _tab(String key, String label) {
@@ -101,6 +156,24 @@ class _ProductsTabState extends State<ProductsTab> {
             borderRadius: BorderRadius.circular(999)),
           child: Text(label, style: TextStyle(
             color: on ? UC.brown : UC.text, fontWeight: FontWeight.w900, fontSize: 12.5)))));
+  }
+
+  /// Stock pill that respects continue-selling / non-storable products.
+  Widget _stockPill(ProductSummary p, bool ar) {
+    if (!p.inStock) {
+      return UPill(text: ar ? 'نفد المخزون' : 'Out of stock',
+        bg: UC.dangerBg, fg: UC.dangerDk, icon: Icons.error_outline);
+    }
+    if (p.allowOos && p.qty <= 0) {
+      return UPill(text: ar ? 'متاح (حسب الطلب)' : 'Available',
+        bg: UC.successBg, fg: UC.successDk, icon: Icons.all_inclusive);
+    }
+    final low = p.qty <= 5;
+    return UPill(
+      text: '${p.qty.toStringAsFixed(0)} ${ar ? "بالمخزون" : "in stock"}',
+      bg: low ? UC.warnBg : UC.successBg,
+      fg: low ? const Color(0xFF92400E) : UC.successDk,
+      icon: low ? Icons.warning_amber : null);
   }
 
   Widget _card(ProductSummary p, String lang) {
@@ -126,26 +199,30 @@ class _ProductsTabState extends State<ProductsTab> {
               Text(p.name.t(lang), maxLines: 2, overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
               const SizedBox(height: 4),
-              Row(children: [
-                Text(p.listPrice.format(lang),
+              // Cost is what the vendor deals with → show it primary.
+              Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                Text(p.standardPrice.format(lang),
                   style: const TextStyle(fontWeight: FontWeight.w900,
-                    color: UC.brown, fontSize: 13.5)),
-                const SizedBox(width: 8),
+                    color: UC.brown, fontSize: 14.5)),
+                const SizedBox(width: 6),
+                Text(ar ? 'التكلفة' : 'cost', style: UT.tiny),
+                const Spacer(),
                 UPill(text: p.approvalState.toUpperCase(),
                   bg: _apprBg(p.approvalState), fg: _apprFg(p.approvalState)),
               ]),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
+              Text('${ar ? "البيع" : "Sells at"} ${p.listPrice.format(lang)}'
+                  '${p.marginPct != 0 ? "  ·  ${p.marginPct.toStringAsFixed(0)}% ${ar ? "هامش" : "margin"}" : ""}',
+                style: UT.small),
+              const SizedBox(height: 5),
               Wrap(spacing: 6, runSpacing: 4, children: [
-                UPill(text: '${p.qty.toStringAsFixed(0)} ${ar ? "بالمخزون" : "in stock"}',
-                  bg: p.qty <= 5 ? UC.dangerBg : UC.bg,
-                  fg: p.qty <= 5 ? UC.dangerDk : UC.muted,
-                  icon: p.qty <= 5 ? Icons.warning_amber : null),
+                _stockPill(p, ar),
                 if (!p.isPublished) UPill(text: ar ? 'غير منشور' : 'Unpublished',
                   bg: UC.warnBg, fg: const Color(0xFF92400E)),
                 if (p.salesCount > 0) UPill(text: ar
                     ? '${p.salesCount.toStringAsFixed(0)} مبيعات'
                     : '${p.salesCount.toStringAsFixed(0)} sold',
-                  bg: UC.successBg, fg: UC.successDk),
+                  bg: UC.infoBg, fg: const Color(0xFF1E40AF)),
               ]),
             ])),
           ]))));

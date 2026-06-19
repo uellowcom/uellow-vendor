@@ -41,7 +41,29 @@ class _InsightsScreenState extends State<InsightsScreen> {
           final cu = (d['customers'] as Map?) ?? const {};
           final cats = (d['categories'] as List?) ?? const [];
           final sellers = (d['top_sellers'] as List?) ?? const [];
+          final inv = (d['inventory'] as Map?) ?? const {};
+          final isFbu = (inv['is_fbu'] ?? false) == true;
           return ListView(padding: const EdgeInsets.all(14), children: [
+            // Inventory value held at Yellow (FBU / consignment).
+            if (isFbu) ...[
+              Container(padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(color: Colors.white,
+                  borderRadius: BorderRadius.circular(16), border: Border.all(color: UC.border)),
+                child: Row(children: [
+                  Container(width: 46, height: 46, alignment: Alignment.center,
+                    decoration: BoxDecoration(color: UC.infoBg, borderRadius: BorderRadius.circular(12)),
+                    child: const Icon(Icons.warehouse_outlined, color: UC.info, size: 22)),
+                  const SizedBox(width: 12),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(ar ? 'قيمة مخزونك لدى يلو' : 'Inventory value at Yellow',
+                      style: const TextStyle(fontSize: 11, color: UC.muted, fontWeight: FontWeight.w800)),
+                    Text(_money(inv['value']),
+                      style: const TextStyle(fontSize: 22, color: UC.brown, fontWeight: FontWeight.w900)),
+                    Text('${inv['units'] ?? 0} ${ar ? "وحدة · بسعر التكلفة" : "units · at cost"}', style: UT.small),
+                  ])),
+                ])),
+              const SizedBox(height: 14),
+            ],
             // Profit hero
             Container(padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(

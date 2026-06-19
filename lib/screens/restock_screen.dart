@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:printing/printing.dart';
 import '../api/api.dart';
 import '../theme/theme.dart';
 
@@ -122,7 +122,8 @@ class _RestockDetailScreenState extends State<RestockDetailScreen> {
     try {
       final url = await VendorApi.instance.restockHandoverUrl(widget.id);
       if (url.isEmpty) throw Exception(_ar ? 'غير متاح' : 'Not available');
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      final bytes = await VendorApi.instance.pdfBytes(url);
+      await Printing.layoutPdf(onLayout: (_) async => bytes);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
     } finally { if (mounted) setState(() => _busy = false); }

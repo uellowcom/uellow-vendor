@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../api/api.dart';
 import '../theme/theme.dart';
@@ -34,12 +35,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     } finally { if (mounted) setState(() => _busy = false); }
   }
 
+  // Fetch the PDF bytes and open a native print/share sheet. Using launchUrl
+  // handed the on-domain URL to the main Uellow app (Android App Links) and the
+  // document never opened; rendering it in-app avoids that entirely.
   Future<void> _openDoc(Future<String> Function() get, String failMsg) async {
     setState(() => _busy = true);
     try {
       final url = await get();
       if (url.isEmpty) throw Exception(failMsg);
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      final bytes = await VendorApi.instance.pdfBytes(url);
+      await Printing.layoutPdf(onLayout: (_) async => bytes);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));

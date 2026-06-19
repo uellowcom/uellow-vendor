@@ -18,12 +18,12 @@ class _ShopTabState extends State<ShopTab> {
   @override
   void initState() {
     super.initState();
-    _f = VendorApi.instance.products(state: 'published');
+    _f = VendorApi.instance.products(state: 'live');
   }
 
   Future<void> _refresh() async {
     setState(() => _f = VendorApi.instance.products(
-        state: 'published', search: _q.isEmpty ? null : _q));
+        state: 'live', search: _q.isEmpty ? null : _q));
     await _f;
   }
 
@@ -190,7 +190,7 @@ class _ShopTabState extends State<ShopTab> {
                 const SizedBox(height: 6),
                 Text(p.listPrice.format(lang),
                     style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: UC.brown)),
-                if (p.qty <= 0)
+                if (!p.inStock)
                   Padding(padding: const EdgeInsets.only(top: 4),
                     child: Text(lang == 'ar' ? 'غير متوفر' : 'Out of stock',
                         style: const TextStyle(fontSize: 10, color: UC.dangerDk, fontWeight: FontWeight.w800))),

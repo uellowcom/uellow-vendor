@@ -107,6 +107,24 @@ class _DashboardTabState extends State<DashboardTab> {
                   ]),
                 ]),
               ])),
+            // Inventory value held at Yellow — FBU / consignment vendors only.
+            if (d.invIsFbu) Padding(padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+              child: Container(padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(color: Colors.white,
+                  border: Border.all(color: UC.border), borderRadius: BorderRadius.circular(14)),
+                child: Row(children: [
+                  Container(width: 44, height: 44, alignment: Alignment.center,
+                    decoration: BoxDecoration(color: UC.infoBg, borderRadius: BorderRadius.circular(11)),
+                    child: const Icon(Icons.warehouse_outlined, color: UC.info, size: 21)),
+                  const SizedBox(width: 12),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(ar ? 'قيمة مخزونك لدى يلو' : 'Inventory value at Yellow',
+                      style: const TextStyle(fontSize: 11, color: UC.muted, fontWeight: FontWeight.w800)),
+                    Text(d.invValue.format(lang),
+                      style: const TextStyle(fontSize: 20, color: UC.brown, fontWeight: FontWeight.w900)),
+                    Text('${d.invUnits} ${ar ? "وحدة بالتكلفة" : "units · at cost"}', style: UT.small),
+                  ])),
+                ]))),
             // Order cards
             Padding(padding: const EdgeInsets.fromLTRB(14, 14, 14, 4),
               child: Row(children: [Text(ar ? 'الطلبات' : 'Orders', style: UT.h3)])),
@@ -172,10 +190,20 @@ class _DashboardTabState extends State<DashboardTab> {
                       const Icon(Icons.chevron_right, color: UC.brown),
                     ])))),
               ),
-            // Recent orders
+            // Recent orders — title + inline "More" on the same line.
             if (d.recentOrders.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(14, 18, 14, 4),
               child: Row(children: [
                 Text(ar ? 'أحدث الطلبات' : 'Latest orders', style: UT.h3),
+                const Spacer(),
+                InkWell(
+                  onTap: () => Navigator.pushNamed(context, '/order-hub'),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    child: Row(children: [
+                      Text(ar ? 'المزيد' : 'More',
+                        style: const TextStyle(color: UC.brown, fontWeight: FontWeight.w900, fontSize: 12.5)),
+                      const Icon(Icons.chevron_right, color: UC.brown, size: 18),
+                    ]))),
               ])),
             for (final o in d.recentOrders) _recentRow(o, lang),
             const SizedBox(height: 24),
@@ -251,12 +279,30 @@ class _DashboardTabState extends State<DashboardTab> {
               child: const Icon(Icons.receipt_long, color: UC.brown, size: 17)),
             const SizedBox(width: 10),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(o.name, style: const TextStyle(fontFamily: 'monospace',
-                fontSize: 12, fontWeight: FontWeight.w900)),
+              Row(children: [
+                Text(o.name, style: const TextStyle(fontFamily: 'monospace',
+                  fontSize: 12, fontWeight: FontWeight.w900)),
+                const SizedBox(width: 6),
+                _statePill(o.state, lang),
+              ]),
+              const SizedBox(height: 2),
               Text(o.customer, style: UT.small, maxLines: 1, overflow: TextOverflow.ellipsis),
             ])),
             Text(o.amount.format(lang),
               style: const TextStyle(fontWeight: FontWeight.w900, color: UC.brown, fontSize: 13)),
           ])))),
   );
+
+  Widget _statePill(String s, String lang) {
+    final ar = lang == 'ar';
+    final (String label, Color bg, Color fg) = switch (s) {
+      'sale' => (ar ? 'مؤكد' : 'Confirmed', UC.successBg, UC.successDk),
+      'done' => (ar ? 'مكتمل' : 'Done', UC.successBg, UC.successDk),
+      'sent' => (ar ? 'عرض سعر' : 'Quote', UC.infoBg, const Color(0xFF1E40AF)),
+      'draft' => (ar ? 'مسودة' : 'Draft', UC.warnBg, const Color(0xFF92400E)),
+      'cancel' => (ar ? 'ملغي' : 'Cancelled', UC.dangerBg, UC.dangerDk),
+      _ => (s, UC.bg, UC.muted),
+    };
+    return UPill(text: label, bg: bg, fg: fg);
+  }
 }

@@ -38,6 +38,11 @@ class VendorApi {
   void setLang(String c) {
     final n = c.toLowerCase().startsWith('ar') ? 'ar' : 'en';
     if (langNotifier.value != n) langNotifier.value = n;
+    // Persist immediately so the choice survives an app restart (previously
+    // only written on login/profile-save, so Arabic reverted to English).
+    SharedPreferences.getInstance()
+        .then((p) => p.setString('vendor_lang_v1', n))
+        .catchError((_) => false);
   }
 
   Future<void> init() async {
@@ -263,6 +268,15 @@ class VendorApi {
   Future<String> orderInvoiceUrl(int id) async {
     final j = _need(await _get('/api/vendor/v1/orders/$id/invoice'));
     return (j['data']?['url'] ?? '').toString();
+  }
+  /// Download a backend PDF (access-token URL) as bytes, so the app can show a
+  /// native print/share sheet instead of handing the URL to another app.
+  Future<Uint8List> pdfBytes(String url) async {
+    final r = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 40));
+    if (r.statusCode != 200) {
+      throw VendorApiException('PDF error (${r.statusCode})', code: 'PDF_ERROR');
+    }
+    return r.bodyBytes;
   }
 
   // Chat
@@ -742,6 +756,10 @@ class Dashboard {
   final String scoreBand;
   final List<RecentOrder> recentOrders;
   final Map<String, dynamic> kpis;
+  final String vendorType;
+  final Money invValue;     // FBU inventory value held at Yellow (at cost)
+  final int invUnits;
+  final bool invIsFbu;
   const Dashboard({required this.revToday, required this.revWeek, required this.revMonth,
       required this.revTotal, required this.ordersPending, required this.ordersNew,
       required this.ordersConfirmed, required this.ordersCompleted, required this.ordersCancelled,
@@ -749,12 +767,19 @@ class Dashboard {
       required this.productsLowStock, required this.walletBalance,
       required this.avgRating, required this.followerCount, required this.tier,
       required this.recentOrders, this.kpis = const {},
-      this.score = 0, this.scoreBand = 'fair'});
+      this.score = 0, this.scoreBand = 'fair',
+      this.vendorType = 'seller', required this.invValue,
+      this.invUnits = 0, this.invIsFbu = false});
   factory Dashboard.fromJson(Map<String, dynamic> j) {
     final rev = (j['revenue'] as Map?)?.cast<String, dynamic>() ?? const {};
     final ord = (j['orders'] as Map?)?.cast<String, dynamic>() ?? const {};
     final pro = (j['products'] as Map?)?.cast<String, dynamic>() ?? const {};
+    final inv = (j['inventory'] as Map?)?.cast<String, dynamic>() ?? const {};
     return Dashboard(
+      vendorType: (j['vendor_type'] ?? 'seller').toString(),
+      invValue: Money.fromJson((inv['value'] as Map?)?.cast<String, dynamic>()),
+      invUnits: _ai(inv['units']),
+      invIsFbu: (inv['is_fbu'] ?? false) as bool,
       revToday: Money.fromJson((rev['today'] as Map?)?.cast<String, dynamic>()),
       revWeek: Money.fromJson((rev['week'] as Map?)?.cast<String, dynamic>()),
       revMonth: Money.fromJson((rev['month'] as Map?)?.cast<String, dynamic>()),
@@ -963,11 +988,15 @@ class ProductSummary {
   final String? imageUrl;
   final bool active;
   final bool underReview;
+  final bool inStock;       // respects continue-selling / non-storable
+  final bool allowOos;
+  final double marginPct;
   const ProductSummary({required this.id, required this.name,
       required this.listPrice, required this.standardPrice,
       required this.isPublished, required this.qty, required this.salesCount,
       required this.approvalState, required this.rejectionReason, this.imageUrl,
-      this.active = true, this.underReview = false});
+      this.active = true, this.underReview = false,
+      this.inStock = true, this.allowOos = false, this.marginPct = 0});
   factory ProductSummary.fromJson(Map<String, dynamic> j) => ProductSummary(
     id: _ai(j['id']),
     name: BL.fromJson(j['name']),
@@ -981,6 +1010,9 @@ class ProductSummary {
     imageUrl: j['image_url'] as String?,
     active: (j['active'] ?? true) as bool,
     underReview: (j['under_review'] ?? false) as bool,
+    inStock: (j['in_stock'] ?? (((j['qty_available'] ?? 0) as num) > 0)) as bool,
+    allowOos: (j['allow_oos'] ?? false) as bool,
+    marginPct: ((j['margin_pct'] ?? 0) as num).toDouble(),
   );
 }
 
@@ -997,7 +1029,7 @@ class ProductDetail extends ProductSummary {
       required super.listPrice, required super.standardPrice,
       required super.isPublished, required super.qty, required super.salesCount,
       required super.approvalState, required super.rejectionReason, super.imageUrl,
-      super.active, super.underReview,
+      super.active, super.underReview, super.inStock, super.allowOos, super.marginPct,
       required this.descriptionSale, required this.description,
       required this.sku, required this.barcode, required this.weight,
       required this.variants, this.pendingChange = '',
@@ -1011,6 +1043,7 @@ class ProductDetail extends ProductSummary {
       isPublished: b.isPublished, qty: b.qty, salesCount: b.salesCount,
       approvalState: b.approvalState, rejectionReason: b.rejectionReason, imageUrl: b.imageUrl,
       active: b.active, underReview: b.underReview,
+      inStock: b.inStock, allowOos: b.allowOos, marginPct: b.marginPct,
       descriptionSale: (j['description_sale'] ?? '').toString(),
       description: (j['description'] ?? '').toString(),
       sku: (j['default_code'] ?? '').toString(),

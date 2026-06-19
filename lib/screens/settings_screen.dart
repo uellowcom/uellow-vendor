@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../api/api.dart';
 import '../theme/theme.dart';
@@ -14,6 +15,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _lang = VendorApi.instance.lang;
   bool _push = true;
   bool _loading = true;
+  String _version = '';
 
   @override
   void initState() { super.initState(); _load(); }
@@ -21,6 +23,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try { _langs = await VendorApi.instance.languages(); } catch (_) {}
     final p = await SharedPreferences.getInstance();
     _push = p.getBool('vendor_push_v1') ?? true;
+    try {
+      final info = await PackageInfo.fromPlatform();
+      _version = 'v${info.version} (${info.buildNumber})';
+    } catch (_) { _version = ''; }
     if (mounted) setState(() => _loading = false);
   }
 
@@ -82,7 +88,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           onTap: () => Navigator.pushNamed(context, '/profile')),
         _section(ar ? 'حول' : 'ABOUT'),
         _row(Icons.info_outline, ar ? 'الإصدار' : 'Version',
-          trailing: const Text('v1.0.0', style: TextStyle(color: UC.muted))),
+          trailing: Text(_version, style: const TextStyle(color: UC.muted))),
       ]),
     );
   }

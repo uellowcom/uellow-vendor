@@ -571,9 +571,21 @@ class VendorApi {
   // ── Restock requests ──
   Future<List<Map<String, dynamic>>> restockList() async =>
       _dataList(_need(await _get('/api/vendor/v1/restock')));
-  Future<void> restockCreate(int productId, int qty, String notes) async =>
-      _need(await _post('/api/vendor/v1/restock',
-          {'product_id': productId, 'qty': qty, 'notes': notes}));
+  Future<void> restockCreate(int productId, int qty, String notes,
+      {String? pickupDate, String? transportMethod}) async =>
+      _need(await _post('/api/vendor/v1/restock', {
+        'product_id': productId, 'qty': qty, 'notes': notes,
+        if (pickupDate != null && pickupDate.isNotEmpty) 'pickup_date': pickupDate,
+        if (transportMethod != null) 'transport_method': transportMethod,
+      }));
+  Future<Map<String, dynamic>> restockDetail(int id) async {
+    final j = _need(await _get('/api/vendor/v1/restock/$id'));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+  Future<String> restockHandoverUrl(int id) async {
+    final j = _need(await _get('/api/vendor/v1/restock/$id/handover'));
+    return (j['data']?['url'] ?? '').toString();
+  }
 
   // ── Stock returns (withdraw goods stored at Uellow) ──
   /// {returns:[...], reasons:[{code,en,ar}]}

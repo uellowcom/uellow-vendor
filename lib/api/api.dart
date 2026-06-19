@@ -395,6 +395,13 @@ class VendorApi {
         {'order_id': orderId, 'reason': reason, 'description': description}));
     return (j['data'] as Map).cast<String, dynamic>();
   }
+  Future<Map<String, dynamic>> disputeDetail(int id) async {
+    final j = _need(await _get('/api/vendor/v1/disputes/$id'));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+  Future<void> disputeComment(int id, String body) async {
+    _need(await _post('/api/vendor/v1/disputes/$id/comment', {'body': body}));
+  }
 
   // ── Developer / Open API ────────────────────────────────────
   Future<Map<String, dynamic>> devMeta() async {

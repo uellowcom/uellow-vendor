@@ -348,13 +348,25 @@ class VendorApi {
   }
 
   // ── Quick / counter sale ────────────────────────────────────
-  Future<Map<String, dynamic>> quickSale(List<Map<String, dynamic>> lines, {String? customerName, String? customerPhone}) async {
+  Future<List<Map<String, dynamic>>> warehouses() async {
+    final j = _need(await _get('/api/vendor/v1/warehouses'));
+    return ((j['data'] as List).cast<Map>()).map((m) => m.cast<String, dynamic>()).toList();
+  }
+  Future<Map<String, dynamic>> quickSale(List<Map<String, dynamic>> lines,
+      {required Map<String, dynamic> customer, int? warehouseId,
+       String? deliveryDate, String? note}) async {
     final j = _need(await _post('/api/vendor/v1/quicksale', {
       'lines': lines,
-      if (customerName != null) 'customer_name': customerName,
-      if (customerPhone != null) 'customer_phone': customerPhone,
+      'customer': customer,
+      if (warehouseId != null) 'warehouse_id': warehouseId,
+      if (deliveryDate != null && deliveryDate.isNotEmpty) 'delivery_date': deliveryDate,
+      if (note != null && note.isNotEmpty) 'note': note,
     }));
     return (j['data'] as Map).cast<String, dynamic>();
+  }
+  Future<List<Map<String, dynamic>>> quickSaleList() async {
+    final j = _need(await _get('/api/vendor/v1/quicksale/list'));
+    return ((j['data'] as List).cast<Map>()).map((m) => m.cast<String, dynamic>()).toList();
   }
 
   // ── Sponsored listings (Ads) ────────────────────────────────

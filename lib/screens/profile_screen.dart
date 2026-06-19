@@ -83,6 +83,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(ar ? 'ملف التاجر' : 'Vendor profile')),
       body: ListView(padding: const EdgeInsets.all(14), children: [
+        _marketsCard(ar),
         _lbl(ar ? 'الشعار' : 'Logo'),
         GestureDetector(onTap: () => _pick(true),
           child: Container(width: 90, height: 90,
@@ -157,4 +158,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _lbl(String t) => Padding(padding: const EdgeInsets.only(bottom: 6),
     child: Text(t.toUpperCase(), style: const TextStyle(fontSize: 10.5,
       fontWeight: FontWeight.w800, color: UC.muted, letterSpacing: .4)));
+
+  Widget _marketsCard(bool ar) {
+    final v = VendorApi.instance.vendor;
+    if (v == null) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [UC.brown, UC.brownSoft],
+          begin: Alignment.topLeft, end: Alignment.bottomRight),
+        borderRadius: BorderRadius.circular(16)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Icon(Icons.public, color: UC.yellow, size: 18),
+          const SizedBox(width: 8),
+          Text(ar ? 'نطاق البيع' : 'Sales scope',
+            style: const TextStyle(color: UC.yellowSoft, fontSize: 12, fontWeight: FontWeight.w900)),
+        ]),
+        const SizedBox(height: 10),
+        Row(children: [
+          Expanded(child: _kv(ar ? 'الدولة' : 'Country',
+            v.countryName.isNotEmpty ? v.countryName : (v.country.isNotEmpty ? v.country : '—'))),
+          Expanded(child: _kv(ar ? 'العملة' : 'Currency', '${v.currency} (${v.currencySymbol})')),
+        ]),
+        const SizedBox(height: 10),
+        Text((ar ? 'الأسواق المتاحة' : 'Available markets').toUpperCase(),
+          style: const TextStyle(color: Color(0xCCFFE066), fontSize: 9.5, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 6),
+        if (v.markets.isEmpty)
+          Text(ar ? 'كل الأسواق' : 'All markets',
+            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700))
+        else
+          Wrap(spacing: 6, runSpacing: 6, children: [
+            for (final m in v.markets) Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+              decoration: BoxDecoration(color: const Color(0x22FFFFFF),
+                borderRadius: BorderRadius.circular(999)),
+              child: Text(m, style: const TextStyle(color: Colors.white,
+                fontSize: 10.5, fontWeight: FontWeight.w800))),
+          ]),
+        if (v.exclusiveMarkets) Padding(padding: const EdgeInsets.only(top: 8),
+          child: Text(ar ? '🔒 منتجاتك حصرية لهذه الأسواق فقط'
+            : '🔒 Your products are exclusive to these markets',
+            style: const TextStyle(color: Color(0xCCFFFFFF), fontSize: 10.5))),
+      ]),
+    );
+  }
+
+  Widget _kv(String k, String val) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    Text(k.toUpperCase(), style: const TextStyle(color: Color(0xCCFFE066),
+      fontSize: 9.5, fontWeight: FontWeight.w800)),
+    const SizedBox(height: 2),
+    Text(val, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900)),
+  ]);
 }

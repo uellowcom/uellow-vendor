@@ -590,6 +590,9 @@ class Vendor {
   final BL storeName, tagline;
   final String slug, state, tier, brandColor, currency, currencySymbol, country;
   final String businessName, contactPhone, contactEmail, bankIban, bankName;
+  final String countryName;
+  final List<String> markets;
+  final bool exclusiveMarkets;
   final String? logoUrl, bannerUrl;
   final double walletBalance, avgRating, totalSales;
   final int followerCount, orderCount;
@@ -600,7 +603,8 @@ class Vendor {
       required this.contactEmail, required this.bankIban, required this.bankName,
       this.logoUrl, this.bannerUrl, required this.walletBalance,
       required this.avgRating, required this.totalSales,
-      required this.followerCount, required this.orderCount});
+      required this.followerCount, required this.orderCount,
+      this.countryName = '', this.markets = const [], this.exclusiveMarkets = true});
   factory Vendor.fromJson(Map<String, dynamic> j) => Vendor(
     id: _ai(j['id']),
     storeName: BL.fromJson(j['store_name']),
@@ -624,6 +628,9 @@ class Vendor {
     totalSales: ((j['total_sales'] ?? 0) as num).toDouble(),
     followerCount: _ai(j['follower_count']),
     orderCount: _ai(j['order_count']),
+    countryName: (j['country_name'] ?? '').toString(),
+    markets: ((j['markets'] as List?) ?? const []).map((e) => e.toString()).toList(),
+    exclusiveMarkets: (j['exclusive_markets'] ?? true) as bool,
   );
   Map<String, dynamic> toJson() => {
     'id': id, 'store_name': storeName.toJson(), 'tagline': tagline.toJson(),
@@ -634,7 +641,8 @@ class Vendor {
     'logo_url': logoUrl, 'banner_url': bannerUrl,
     'wallet_balance': walletBalance, 'avg_rating': avgRating,
     'total_sales': totalSales, 'follower_count': followerCount,
-    'order_count': orderCount,
+    'order_count': orderCount, 'country_name': countryName,
+    'markets': markets, 'exclusive_markets': exclusiveMarkets,
   };
 }
 

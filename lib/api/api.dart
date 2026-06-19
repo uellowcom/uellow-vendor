@@ -246,8 +246,17 @@ class VendorApi {
   }
   Future<void> orderConfirm(int id) async { _need(await _post('/api/vendor/v1/orders/$id/confirm')); }
   Future<void> orderShip(int id) async { _need(await _post('/api/vendor/v1/orders/$id/ship')); }
+  Future<void> orderPrepare(int id) async { _need(await _post('/api/vendor/v1/orders/$id/prepare')); }
   Future<void> orderCancel(int id, String reason) async {
     _need(await _post('/api/vendor/v1/orders/$id/cancel', {'reason': reason}));
+  }
+  Future<String> orderLabelUrl(int id) async {
+    final j = _need(await _get('/api/vendor/v1/orders/$id/label'));
+    return (j['data']?['url'] ?? '').toString();
+  }
+  Future<String> orderInvoiceUrl(int id) async {
+    final j = _need(await _get('/api/vendor/v1/orders/$id/invoice'));
+    return (j['data']?['url'] ?? '').toString();
   }
 
   // Chat
@@ -694,18 +703,52 @@ class RecentOrder {
   );
 }
 
+class TrackStep {
+  final String key, en, ar;
+  final bool done, current;
+  const TrackStep(this.key, this.en, this.ar, this.done, this.current);
+  String t(String l) => l == 'ar' ? ar : en;
+  factory TrackStep.fromJson(Map<String, dynamic> j) => TrackStep(
+    (j['key'] ?? '').toString(), (j['en'] ?? '').toString(), (j['ar'] ?? '').toString(),
+    (j['done'] ?? false) as bool, (j['current'] ?? false) as bool);
+}
+
+class Tracking {
+  final bool cancelled, failed;
+  final int current;
+  final String driver, deliveryStatus;
+  final List<TrackStep> steps;
+  const Tracking({this.cancelled = false, this.failed = false, this.current = 0,
+      this.driver = '', this.deliveryStatus = '', this.steps = const []});
+  factory Tracking.fromJson(Map<String, dynamic>? j) {
+    j ??= const {};
+    return Tracking(
+      cancelled: (j['cancelled'] ?? false) as bool,
+      failed: (j['failed'] ?? false) as bool,
+      current: _ai(j['current']),
+      driver: (j['driver'] ?? '').toString(),
+      deliveryStatus: (j['delivery_status'] ?? '').toString(),
+      steps: ((j['steps'] as List?) ?? const [])
+          .map((e) => TrackStep.fromJson((e as Map).cast<String, dynamic>())).toList(),
+    );
+  }
+}
+
 class OrderSummary {
   final int id;
-  final String name, state, when, invoiceStatus;
+  final String name, state, when, invoiceStatus, vendorType;
   final BL stateLabel;
   final Money amount;
   final int itemCount;
+  final bool minimal;
   final Map<String, dynamic> customer;
   final String slaState, fulfillDue;
+  final Tracking tracking;
   const OrderSummary({required this.id, required this.name, required this.state,
       required this.when, required this.invoiceStatus, required this.stateLabel,
       required this.amount, required this.itemCount, required this.customer,
-      this.slaState = '', this.fulfillDue = ''});
+      this.slaState = '', this.fulfillDue = '', this.vendorType = 'seller',
+      this.minimal = false, this.tracking = const Tracking()});
   factory OrderSummary.fromJson(Map<String, dynamic> j) => OrderSummary(
     id: _ai(j['id']),
     name: (j['name'] ?? '').toString(),
@@ -718,6 +761,9 @@ class OrderSummary {
     customer: (j['customer'] as Map?)?.cast<String, dynamic>() ?? const {},
     slaState: (j['sla_state'] ?? '').toString(),
     fulfillDue: (j['fulfill_due'] ?? '').toString(),
+    vendorType: (j['vendor_type'] ?? 'seller').toString(),
+    minimal: (j['minimal'] ?? false) as bool,
+    tracking: Tracking.fromJson((j['tracking'] as Map?)?.cast<String, dynamic>()),
   );
 }
 
@@ -753,23 +799,28 @@ class OrderDetail extends OrderSummary {
   final Map<String, dynamic> shippingAddress;
   final List<OrderItem> items;
   final String note;
+  final Map<String, dynamic> actions;
   const OrderDetail({required super.id, required super.name, required super.state,
       required super.when, required super.invoiceStatus, required super.stateLabel,
       required super.amount, required super.itemCount, required super.customer,
+      required super.vendorType, required super.minimal, required super.tracking,
       required this.subtotal, required this.shipping, required this.shippingAddress,
-      required this.items, required this.note});
+      required this.items, required this.note, this.actions = const {}});
+  bool act(String k) => actions[k] == true;
   factory OrderDetail.fromJson(Map<String, dynamic> j) {
     final b = OrderSummary.fromJson(j);
     return OrderDetail(
       id: b.id, name: b.name, state: b.state, when: b.when,
       invoiceStatus: b.invoiceStatus, stateLabel: b.stateLabel,
       amount: b.amount, itemCount: b.itemCount, customer: b.customer,
+      vendorType: b.vendorType, minimal: b.minimal, tracking: b.tracking,
       subtotal: Money.fromJson((j['subtotal'] as Map?)?.cast<String, dynamic>()),
       shipping: Money.fromJson((j['shipping'] as Map?)?.cast<String, dynamic>()),
       shippingAddress: (j['shipping_address'] as Map?)?.cast<String, dynamic>() ?? const {},
       items: ((j['items'] as List?) ?? const [])
         .map((e) => OrderItem.fromJson((e as Map).cast<String, dynamic>())).toList(),
       note: (j['note'] ?? '').toString(),
+      actions: (j['actions'] as Map?)?.cast<String, dynamic>() ?? const {},
     );
   }
 }

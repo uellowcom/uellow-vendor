@@ -199,6 +199,12 @@ class VendorApi {
   Future<void> adminDecideProduct(int id, String decision, {String reason = ''}) async {
     _need(await _post('/api/vendor/v1/admin/products/$id/$decision', {'reason': reason}));
   }
+  Future<void> adminPriceApproveAll(int reqId) async {
+    _need(await _post('/api/vendor/v1/admin/price-requests/$reqId/approve-all'));
+  }
+  Future<void> adminPriceLineDecide(int lineId, String decision) async {
+    _need(await _post('/api/vendor/v1/admin/price-lines/$lineId/$decision'));
+  }
   Future<Vendor> me() async {
     final j = _need(await _get('/api/vendor/v1/me'));
     _vendor = Vendor.fromJson(((j['data'] as Map)['vendor'] as Map).cast<String, dynamic>());

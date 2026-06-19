@@ -381,6 +381,14 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
     try { await VendorApi.instance.adminDecideProduct(id, d); _reload(); }
     catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'))); }
   }
+  Future<void> _decidePriceLine(int id, String d) async {
+    try { await VendorApi.instance.adminPriceLineDecide(id, d); _reload(); }
+    catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'))); }
+  }
+  Future<void> _approveAllPrices(int reqId) async {
+    try { await VendorApi.instance.adminPriceApproveAll(reqId); _reload(); }
+    catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'))); }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -394,12 +402,16 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
         final d = s.data ?? const {};
         final changes = (d['changes'] as List?) ?? const [];
         final newp = (d['new_products'] as List?) ?? const [];
-        if (changes.isEmpty && newp.isEmpty) {
+        final prices = (d['price_requests'] as List?) ?? const [];
+        if (changes.isEmpty && newp.isEmpty && prices.isEmpty) {
           return Center(child: Text(ar ? 'لا شيء بانتظار الموافقة' : 'Nothing pending'));
         }
         return RefreshIndicator(onRefresh: () async => _reload(),
           child: ListView(padding: const EdgeInsets.all(12), children: [
-            if (changes.isNotEmpty) Text(ar ? 'تعديلات' : 'Edits', style: UT.h2),
+            if (prices.isNotEmpty) Text(ar ? 'أسعار بانتظار الاعتماد' : 'Price approvals', style: UT.h2),
+            for (final r in prices) _priceCard(r as Map<String, dynamic>, ar),
+            if (changes.isNotEmpty) Padding(padding: EdgeInsets.only(top: prices.isNotEmpty ? 10 : 0),
+              child: Text(ar ? 'تعديلات' : 'Edits', style: UT.h2)),
             for (final c in changes) _card(
               title: '${c['product']} · ${c['vendor']}',
               body: '${c['summary'] ?? ''}',
@@ -415,6 +427,46 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
           ]));
       }),
     );
+  }
+
+  Widget _priceCard(Map<String, dynamic> r, bool ar) {
+    final lines = (r['lines'] as List?) ?? const [];
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: UC.border)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(child: Text('${r['name']} · ${r['vendor']}',
+            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13))),
+          FilledButton(style: FilledButton.styleFrom(backgroundColor: const Color(0xFF1f9d55),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6)),
+            onPressed: () => _approveAllPrices(r['id'] as int),
+            child: Text(ar ? 'اعتماد الكل' : 'Apply all',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900))),
+        ]),
+        const SizedBox(height: 8),
+        for (final l in lines) Container(
+          margin: const EdgeInsets.only(bottom: 6), padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(color: UC.bg, borderRadius: BorderRadius.circular(10)),
+          child: Row(children: [
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('${(l as Map)['product']}', maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
+              Text('${l['current_price']} → ${l['new_price']}  (${l['delta_pct']}%) · '
+                '${ar ? "هامش" : "margin"} ${l['margin_after']}%',
+                style: TextStyle(fontSize: 11,
+                  color: (l['margin_after'] ?? 0) < 0 ? UC.dangerDk : UC.muted,
+                  fontWeight: FontWeight.w700)),
+            ])),
+            IconButton(visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.check_circle, color: Color(0xFF1f9d55), size: 22),
+              onPressed: () => _decidePriceLine(l['id'] as int, 'approve')),
+            IconButton(visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.cancel, color: UC.dangerDk, size: 22),
+              onPressed: () => _decidePriceLine(l['id'] as int, 'reject')),
+          ])),
+      ]));
   }
 
   Widget _card({required String title, required String body,

@@ -51,6 +51,7 @@ class _MeTabState extends State<MeTab> {
         _Item(Icons.sell_outlined, 'Price requests', 'طلبات الأسعار', '/price-requests', const Color(0xFF14B8A6)),
         _Item(Icons.palette_outlined, 'Store style', 'تصميم المتجر', '/style', const Color(0xFFA855F7)),
         _Item(Icons.reviews_outlined, 'Reviews', 'التقييمات', '/reviews', UC.warn),
+        _Item(Icons.insights, 'Insights', 'مؤشرات الأداء', '/insights', const Color(0xFF0D9488)),
         _Item(Icons.bar_chart, 'Analytics', 'التحليلات', '/analytics', UC.info),
         _Item(Icons.table_view_outlined, 'Reports', 'التقارير', '/reports', UC.brownSoft),
         _Item(Icons.person_outline, 'Profile', 'ملف التاجر', '/profile', UC.muted),

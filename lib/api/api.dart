@@ -470,6 +470,10 @@ class VendorApi {
   }
 
   // Analytics
+  Future<Map<String, dynamic>> kpis() async {
+    final j = _need(await _get('/api/vendor/v1/analytics/kpis'));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
   Future<SalesTimeseries> salesTimeseries({int days = 30}) async {
     final j = _need(await _get('/api/vendor/v1/analytics/sales', query: {'days': '$days'}));
     return SalesTimeseries.fromJson((j['data'] as Map).cast<String, dynamic>());

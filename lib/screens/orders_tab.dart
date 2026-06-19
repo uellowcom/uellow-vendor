@@ -104,6 +104,16 @@ class _OrdersTabState extends State<OrdersTab> {
             Text(o.name, style: const TextStyle(fontFamily: 'monospace',
               fontSize: 12.5, fontWeight: FontWeight.w900)),
             const Spacer(),
+            if (o.slaState == 'overdue' || o.slaState == 'due_soon') ...[
+              UPill(
+                text: o.slaState == 'overdue'
+                  ? (lang == 'ar' ? 'متأخر' : 'Overdue')
+                  : (lang == 'ar' ? 'قرب الاستحقاق' : 'Due soon'),
+                bg: o.slaState == 'overdue' ? UC.dangerBg : UC.warnBg,
+                fg: o.slaState == 'overdue' ? UC.dangerDk : const Color(0xFF92400E),
+                icon: Icons.timer_outlined),
+              const SizedBox(width: 6),
+            ],
             UPill(text: o.stateLabel.t(lang), bg: _stBg(o.state), fg: _stFg(o.state)),
           ]),
           const SizedBox(height: 6),

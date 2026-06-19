@@ -375,9 +375,20 @@ class VendorApi {
     final j = _need(await _get('/api/vendor/v1/ads'));
     return (j['data'] as Map).cast<String, dynamic>();
   }
-  Future<Map<String, dynamic>> adCreate(int productId, String start, String end, {String? name}) async {
-    final j = _need(await _post('/api/vendor/v1/ads/create',
-        {'product_id': productId, 'start': start, 'end': end, if (name != null) 'name': name}));
+  Future<Map<String, dynamic>> adQuote() async {
+    final j = _need(await _get('/api/vendor/v1/ads/quote'));
+    return (j['data'] as Map).cast<String, dynamic>();
+  }
+  Future<Map<String, dynamic>> adCreate({required String adFormat, required String placement,
+      required String start, required String end, int? productId, String? name,
+      String? headline, String? bannerBase64}) async {
+    final j = _need(await _post('/api/vendor/v1/ads/create', {
+      'ad_format': adFormat, 'placement': placement, 'start': start, 'end': end,
+      if (productId != null) 'product_id': productId,
+      if (name != null && name.isNotEmpty) 'name': name,
+      if (headline != null && headline.isNotEmpty) 'headline': headline,
+      if (bannerBase64 != null && bannerBase64.isNotEmpty) 'banner_base64': bannerBase64,
+    }));
     return (j['data'] as Map).cast<String, dynamic>();
   }
   Future<void> adCancel(int id) async {

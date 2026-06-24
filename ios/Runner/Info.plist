@@ -16,6 +16,12 @@
 	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>uellow_vendor</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Uellow Vendor uses the camera so you can take photos of your products to add them to your store listings.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Uellow Vendor needs access to your photo library so you can choose existing photos for your product listings.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Uellow Vendor saves product photos you capture to your photo library.</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
